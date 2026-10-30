@@ -243,7 +243,7 @@ tcm-prescription-system/
 │   ├── css/auth.css         # 登录/注册分栏版式
 │   └── js/app.js            # Toast、防重复提交、tcmApi 封装
 ├── docs/screenshots/        # 界面截图
-└── docs/ci-workflow.example.yml  # CI 流水线示例（复制到 .github/workflows/ 后启用）
+└── .github/workflows/ci.yml # CI：ruff + check + 迁移 + 测试
 ```
 
 ---
@@ -297,7 +297,7 @@ python manage.py makemigrations --check --dry-run
 python manage.py test apps
 ```
 
-- **CI**：`docs/ci-workflow.example.yml` 提供现成流水线（ruff 静态检查、`manage.py check`、迁移遗漏检查、单元测试四道关卡），复制到 `.github/workflows/ci.yml` 即可启用；推送该路径需要 token 具备 `workflow` 权限。
+- **CI**：`.github/workflows/ci.yml` 在 push / PR 时执行 ruff 静态检查、`manage.py check`、迁移遗漏检查、单元测试四道关卡。
 - **容器化**：`Dockerfile` 基于 `python:3.12-slim`，内置 pango/cairo 以支持 PDF 导出，用 Gunicorn 3 worker 启动。
 - **依赖分层**：`requirements.txt` 区分「运行时必需 / 生产部署 / 可选」三档，未装 WeasyPrint 时 PDF 自动降级为浏览器打印，不会因缺少可选依赖而崩溃。
 
