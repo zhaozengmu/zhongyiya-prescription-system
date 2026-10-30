@@ -1,5 +1,7 @@
 # 中医处方开具与审核管理系统（TCM-RMS）
 
+[![CI](https://github.com/zhaozengmu/zhongyiya-prescription-system/actions/workflows/ci.yml/badge.svg)](https://github.com/zhaozengmu/zhongyiya-prescription-system/actions/workflows/ci.yml)
+
 基于 **Python 3.12 + Django 5.x** 的中医处方开具与审核管理系统，实现「患者信息管理 — 处方开具管理 — 处方审核管理 — 历史查询与统计」四大核心业务的数字化闭环，并构建 **"规则化自动预审 + 药师人工复核"** 的双层处方审核机制。
 
 > **⚠️ 重要声明**：本项目为《软件工程》课程实训平台，全程使用**模拟虚构数据**，不对接真实业务系统，不采集真实患者隐私信息，**禁止投入真实诊疗环境使用**。
