@@ -1,0 +1,51 @@
+# GitHub Actions 流水线示例（ruff 静态检查 + manage.py check + 迁移遗漏检查 + 单元测试）
+#
+# 仓库默认未启用，需要时执行：
+#   mkdir -p .github/workflows && cp docs/ci-workflow.example.yml .github/workflows/ci.yml
+#   git add .github/workflows/ci.yml && git commit -m "ci: 启用流水线"
+#
+# 注意：推送 .github/workflows/ 下的文件要求 token 具备 workflow 权限
+# （classic PAT 需额外勾选 workflow scope，fine-grained PAT 需 Workflows: Read and write），
+# 否则 push 会被拒绝：refusing to allow a Personal Access Token to create or update workflow。
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: "ci-only-secret-key-not-for-production-use-0123456789"
+      DJANGO_ALLOWED_HOSTS: "127.0.0.1,localhost,testserver"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Check for missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: python manage.py test apps -v 2
