@@ -20,6 +20,8 @@ db.sqlite3
 # 环境变量与密钥
 .env
 .env.*
+# 模板文件不含真实密钥，需要入库作为配置说明
+!.env.example
 
 # IDE
 .idea/

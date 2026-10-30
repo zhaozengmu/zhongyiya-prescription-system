@@ -1,8 +1,18 @@
+# ===== 运行时必需 =====
 Django>=5.0,<6.0
-cryptography>=42.0.0
+cryptography>=42.0.0          # 敏感字段 Fernet 加密 + HMAC 哈希
+python-dotenv>=1.0.0          # 从 .env 读取配置
+openpyxl>=3.1.0               # 药材字典 Excel 导入 / 报表导出
+
+# ===== 生产部署 =====
+gunicorn>=21.2.0              # WSGI 服务器（Windows 下改用 waitress）
+
+# ===== 可选：按需启用 =====
+# PDF 导出（缺失时自动降级为浏览器打印，不报错）
+weasyprint>=62.0
+# MySQL 8 数据源（DB_ENGINE=mysql 时需要）
 mysqlclient>=2.2.0
+# Redis 缓存与会话（未设置 REDIS_URL 时退化为进程内缓存）
 redis>=5.0.0
+# 大数据量报表聚合（当前统计模块用 ORM 聚合实现，可不装）
 pandas>=2.2.0
-openpyxl>=3.1.0
-python-dotenv>=1.0.0
-gunicorn>=21.2.0

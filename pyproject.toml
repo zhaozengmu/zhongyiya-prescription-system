@@ -1,0 +1,25 @@
+[project]
+name = "tcm-rms"
+version = "1.0.0"
+description = "中医处方开具与审核管理系统"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = ["**/migrations/*", ".venv", "venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "DJ"]
+ignore = [
+    "E501",   # 行宽由 formatter 处理，中文注释容易被误判
+    "B008",   # Django 惯例允许函数调用作为默认参数
+    "DJ001",  # 部分 CharField 保留 null=False + blank=True 的既有写法
+]
+
+[tool.ruff.lint.per-file-ignores]
+"config/settings.py" = ["F403", "F405"]
+"**/tests.py" = ["B011"]
+
+[tool.ruff.format]
+quote-style = "double"
