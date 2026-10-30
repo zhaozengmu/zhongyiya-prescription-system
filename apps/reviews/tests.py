@@ -9,10 +9,10 @@
 """
 from django.test import TestCase
 
-from apps.users.models import User, Role, Doctor, Pharmacist
 from apps.patients.models import Patient
-from apps.prescriptions.models import Herb, Prescription, PrescriptionItem, AuditRule
+from apps.prescriptions.models import AuditRule, Herb, Prescription, PrescriptionItem
 from apps.reviews import engine, state_machine
+from apps.users.models import Doctor, User
 
 
 class AuditEngineTests(TestCase):

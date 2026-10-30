@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import ReviewRecord, DispenseRecord, Notification
+
+from .models import DispenseRecord, Notification, ReviewRecord
 
 
 @admin.register(ReviewRecord)

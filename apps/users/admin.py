@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import User, Role, Permission, RolePermission, UserRole, Doctor, Pharmacist
+from .models import Doctor, Permission, Pharmacist, Role, RolePermission, User, UserRole
 
 
 @admin.register(User)

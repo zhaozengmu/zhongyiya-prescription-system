@@ -4,12 +4,12 @@
     python manage.py backup            # 备份到 backup/ 目录
     python manage.py backup --output /path/to/dir
 """
+import datetime
 import os
 import shutil
-import datetime
 
-from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

@@ -1,7 +1,14 @@
 from django.contrib import admin
+
 from .models import (
-    Herb, Supplier, HerbBatch, FormulaTemplate, FormulaItem,
-    AuditRule, Prescription, PrescriptionItem,
+    AuditRule,
+    FormulaItem,
+    FormulaTemplate,
+    Herb,
+    HerbBatch,
+    Prescription,
+    PrescriptionItem,
+    Supplier,
 )
 
 

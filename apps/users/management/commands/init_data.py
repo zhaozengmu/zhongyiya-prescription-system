@@ -15,26 +15,31 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.users.models import User, Role, Permission, RolePermission, UserRole, Doctor, Pharmacist
 from apps.prescriptions.models import (
-    Herb, FormulaTemplate, FormulaItem, AuditRule, Supplier, HerbBatch,
+    AuditRule,
+    FormulaItem,
+    FormulaTemplate,
+    Herb,
+    HerbBatch,
+    Supplier,
 )
-
+from apps.users.models import Doctor, Permission, Pharmacist, Role, RolePermission, User, UserRole
 
 # 权限编码清单
+# 约定：这里只保留「代码里真的会校验」的权限点，避免出现定义了却从不校验的空壳权限。
 PERMISSIONS = [
     ("患者:读", "患者读取", "action"),
     ("患者:新增", "患者建档", "action"),
     ("处方:新增", "新建处方", "action"),
     ("处方:修改", "修改处方", "action"),
     ("处方:提交", "提交处方", "action"),
+    ("我的处方:读", "查看本人处方", "action"),
     ("审核:读", "查看审核", "action"),
     ("审核:领取", "领取审核任务", "action"),
-    ("审核:转交", "转交审核任务", "action"),
     ("审核:通过", "初审通过", "action"),
     ("审核:复审", "复审通过", "action"),
     ("审核:退回", "审核退回", "action"),
-    ("审核:附件", "上传附件", "action"),
+    ("收费:确认", "缴费登记", "action"),
     ("发药:确认", "药房发药确认", "action"),
     ("药房:管理", "药材入库与库存管理", "action"),
     ("统计:读", "查看统计", "action"),
@@ -42,25 +47,59 @@ PERMISSIONS = [
     ("日志:读", "查看日志", "action"),
     ("导出:执行", "导出数据", "action"),
     ("用户:读", "查看用户", "action"),
-    ("用户:管理", "用户与权限配置", "action"),
     ("字典:维护", "字典与规则维护", "action"),
 ]
 
 # 角色权限分配
 ROLE_PERMISSIONS = {
     "doctor": ["患者:读", "患者:新增", "处方:新增", "处方:修改", "处方:提交", "统计:读"],
-    "pharmacist": ["审核:读", "审核:领取", "审核:转交", "审核:通过", "审核:退回", "审核:附件", "统计:读"],
-    "pharmacist_lead": [
-        "审核:读", "审核:领取", "审核:复审", "审核:退回", "审核:附件", "统计:读",
-    ],
+    "pharmacist": ["审核:读", "审核:领取", "审核:通过", "审核:退回", "统计:读"],
+    "pharmacist_lead": ["审核:读", "审核:领取", "审核:复审", "审核:退回", "统计:读"],
+    "cashier": ["收费:确认", "统计:读"],
     "pharmacy": ["发药:确认", "药房:管理", "统计:读", "导出:执行"],
     "medical_affairs": ["医务科:统计", "统计:读", "日志:读", "导出:执行"],
+    # 管理员负责系统维护与全局查看，不具备医师执业资格，因此不授予「处方:新增」
     "admin": [
-        "用户:读", "用户:管理", "患者:读", "处方:新增", "统计:读", "日志:读", "导出:执行",
-        "字典:维护", "审核:读", "发药:确认", "药房:管理",
+        "用户:读", "患者:读", "统计:读", "日志:读", "导出:执行",
+        "字典:维护", "审核:读", "发药:确认", "药房:管理", "收费:确认",
     ],
-    "patient": ["统计:读"],
+    # 患者只保留「看自己的处方」，不再拥有全量统计权限
+    "patient": ["我的处方:读"],
 }
+
+# 医师演示账号的科室与职称
+DOCTOR_PROFILES = {
+    "doctor1": ("中医内科", "主任医师"),
+    "doctor2": ("中医妇科", "副主任医师"),
+    "doctor3": ("中医内科", "主治医师"),
+    "doctor4": ("针灸推拿科", "主治医师"),
+    "doctor5": ("中医儿科", "住院医师"),
+}
+
+# 演示患者档案：(姓名, 性别, 年龄, 体质, 孕产状态, 手机号, 既往病史, 就诊摘要)
+DEMO_PATIENTS = [
+    ("张三", "M", 35, "QI_DEFICIENCY", "NONE", "13800000000",
+     "慢性胃炎 5 年", "反复乏力、纳差 3 月，辨证为脾胃气虚。"),
+    ("林清和", "M", 42, "QI_DEFICIENCY", "NONE", "13910000001",
+     "高血压（服药控制中）", "气短懒言、动则汗出，舌淡苔白，脉弱。"),
+    ("苏念慈", "F", 29, "YIN_DEFICIENCY", "PREGNANT", "13910000002",
+     "孕 16 周，无药物过敏史", "妊娠中期口干咽燥、夜寐不安，需避用妊娠禁忌药。"),
+    ("顾长风", "M", 58, "PHLEGM_DAMP", "NONE", "13910000003",
+     "2 型糖尿病 8 年，高脂血症", "形体肥胖、胸闷痰多，舌苔厚腻，脉滑。"),
+    ("白露", "F", 34, "QI_STAGNATION", "NONE", "13910000004",
+     "乳腺增生", "情志抑郁、胁肋胀痛，月经先后不定期。"),
+    ("郝思远", "M", 8, "BALANCED", "NONE", "13910000005",
+     "易感冒，无慢性病", "小儿反复咳嗽 2 周，痰少，需按儿童剂量折算。"),
+    ("温玉汝", "F", 66, "YANG_DEFICIENCY", "NONE", "13910000006",
+     "骨质疏松、甲状腺功能减退", "畏寒肢冷、腰膝酸软，冬季加重。"),
+    ("邵明轩", "M", 51, "DAMP_HEAT", "NONE", "13910000007",
+     "痛风病史 6 年", "口苦口黏、小便黄赤，舌红苔黄腻。"),
+    ("傅小满", "F", 24, "BLOOD_STASIS", "NONE", "13910000008",
+     "原发性痛经", "经行腹痛拒按、经血色暗有块，舌质紫暗。"),
+    ("岑子谦", "M", 37, "BALANCED", "NONE", "13910000009",
+     "无特殊病史，青霉素过敏", "偶发失眠多梦，工作压力大，舌脉基本正常。"),
+]
+
 
 # 审核规则库初始清单（含适用范围）
 AUDIT_RULES = [
@@ -180,20 +219,31 @@ BATCHES = [
 class Command(BaseCommand):
     help = "初始化系统基础数据（角色、权限、规则库、字典、供应商批次、方剂模板、演示账号）"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--reset-demo",
+            action="store_true",
+            help="把演示账号密码重置为初始值并解除锁定（账号已存在时也生效）",
+        )
+
     def handle(self, *args, **options):
+        self.reset_demo = options.get("reset_demo", False)
         with transaction.atomic():
             self.create_roles_and_permissions()
             self.create_audit_rules()
             self.create_herbs_and_formulas()
             self.create_suppliers_and_batches()
             self.create_demo_accounts()
+            self.create_demo_patients()
         self.stdout.write(self.style.SUCCESS("初始化完成！"))
+
 
     def create_roles_and_permissions(self):
         role_defs = [
             ("doctor", "医师", "接诊开方"),
             ("pharmacist", "药师", "处方初审"),
             ("pharmacist_lead", "药师组长", "处方复审"),
+            ("cashier", "收费员", "处方缴费登记"),
             ("pharmacy", "药房管理员", "药材入库、库存与发药"),
             ("medical_affairs", "医务科", "查看全量统计报表"),
             ("admin", "系统管理员", "系统维护"),
@@ -205,16 +255,29 @@ class Command(BaseCommand):
 
         perm_objs = {}
         for code, name, level in PERMISSIONS:
-            perm_objs[code] = Permission.objects.get_or_create(
+            perm_objs[code] = Permission.objects.update_or_create(
                 code=code, defaults={"name": name, "level": level}
             )[0]
 
+        # 清理已下线的权限点，保证权限表与代码校验点一致（可重复执行）
+        valid_codes = {code for code, _, _ in PERMISSIONS}
+        stale = Permission.objects.exclude(code__in=valid_codes)
+        if stale.exists():
+            RolePermission.objects.filter(permission__in=stale).delete()
+            stale.delete()
+
+        # 重建角色-权限映射，避免历史脏数据残留
         for role_code, perm_codes in ROLE_PERMISSIONS.items():
             role = roles[role_code]
-            for pc in perm_codes:
-                RolePermission.objects.get_or_create(role=role, permission=perm_objs[pc])
+            wanted = [perm_objs[pc] for pc in perm_codes if pc in perm_objs]
+            RolePermission.objects.filter(role=role).exclude(permission__in=wanted).delete()
+            for perm in wanted:
+                RolePermission.objects.get_or_create(role=role, permission=perm)
 
-        self.stdout.write(self.style.SUCCESS(f"角色（{len(roles)}）与权限创建完成"))
+        self.stdout.write(self.style.SUCCESS(
+            f"角色（{len(roles)}）与权限（{len(PERMISSIONS)}）创建完成"
+        ))
+
 
     def create_audit_rules(self):
         for rule_no, rule_type, herbs, level, scope, message, basis in AUDIT_RULES:
@@ -283,8 +346,12 @@ class Command(BaseCommand):
             ("admin1", "rx123456", "系统管理员", "admin", False, False),
             ("doctor1", "rx123456", "陈志明", "doctor", True, False),
             ("doctor2", "rx123456", "王玉晨", "doctor", True, False),
+            ("doctor3", "rx123456", "李慕白", "doctor", True, False),
+            ("doctor4", "rx123456", "周睿谦", "doctor", True, False),
+            ("doctor5", "rx123456", "苏文垣", "doctor", True, False),
             ("pharmacist1", "rx123456", "雷婧怡", "pharmacist", False, True),
             ("pharmacist2", "rx123456", "尹姣", "pharmacist_lead", False, True),
+            ("cashier1", "rx123456", "收费窗口", "cashier", False, False),
             ("pharmacy1", "rx123456", "沈雯", "pharmacy", False, False),
             ("patient1", "rx123456", "张三", "patient", False, False),
         ]
@@ -294,23 +361,88 @@ class Command(BaseCommand):
                 username=username,
                 defaults={"first_name": name, "last_name": "", "is_staff": (role_code == "admin")},
             )
-            if created:
+            # --reset-demo 或首次创建时统一重设密码，避免"改了密码就再也跑不回去"
+            if created or self.reset_demo:
                 user.set_password(password)
+                user.failed_attempts = 0
+                user.locked_until = None
                 user.save()
             role = Role.objects.get(code=role_code)
             UserRole.objects.get_or_create(user=user, role=role)
 
             if is_doctor:
+                dept, title = DOCTOR_PROFILES.get(username, ("中医科", "主治医师"))
                 Doctor.objects.get_or_create(
                     user=user,
-                    defaults={"license_no": f"ZY{user.id:06d}", "department": "中医科", "title": "主治医师"},
+                    defaults={"license_no": f"ZY{user.id:06d}", "department": dept, "title": title},
                 )
             if is_pharmacist:
                 Pharmacist.objects.get_or_create(
                     user=user, defaults={"license_no": f"YS{user.id:06d}"}
                 )
 
+            # 患者账号绑定一份患者档案，才能查"我的处方"
+            if role_code == "patient":
+                self._link_patient_profile(user, name)
+
         self.stdout.write(self.style.SUCCESS("演示账号创建完成"))
         self.stdout.write(self.style.WARNING(
-            "演示账号：admin1 / doctor1 / pharmacist1 / pharmacist2(药师组长) / pharmacy1(药房) / patient1，密码统一 rx123456"
+            "演示账号：admin1 / doctor1~doctor5 / pharmacist1 / pharmacist2(药师组长) / "
+            "cashier1(收费) / pharmacy1(药房) / patient1，密码统一 rx123456"
         ))
+
+    def create_demo_patients(self):
+        """批量创建演示患者档案（敏感字段加密存储）。"""
+        from apps.patients.models import Patient
+        from apps.utils.crypto import encrypt, hash_value
+
+        created_count = 0
+        for idx, (name, gender, age, constitution, pregnancy, phone, history, summary) in enumerate(
+            DEMO_PATIENTS, start=1
+        ):
+            patient_no = f"20260101{idx:04d}"
+            _, created = Patient.objects.get_or_create(
+                patient_no=patient_no,
+                defaults={
+                    "name": name,
+                    "gender": gender,
+                    "age": age,
+                    "constitution": constitution,
+                    "pregnancy_status": pregnancy,
+                    "phone_encrypted": encrypt(phone),
+                    "phone_hash": hash_value(phone),
+                    "medical_history": history,
+                    "visit_summary": summary,
+                },
+            )
+            if created:
+                created_count += 1
+
+        self.stdout.write(
+            self.style.SUCCESS(f"演示患者档案创建完成（新增 {created_count} 条，共 {len(DEMO_PATIENTS)} 条）")
+        )
+
+    def _link_patient_profile(self, user, name):
+        """确保患者账号关联到一条患者档案（缺失则创建）。"""
+        from apps.patients.models import Patient
+        from apps.utils.crypto import encrypt, hash_value
+
+        if hasattr(user, "patient_profile"):
+            return
+
+        phone = "13800000000"
+        patient, _ = Patient.objects.get_or_create(
+            patient_no="202601010001",
+            defaults={
+                "name": name,
+                "gender": "M",
+                "age": 35,
+                "phone_encrypted": encrypt(phone),
+                "phone_hash": hash_value(phone),
+                "constitution": "QI_DEFICIENCY",
+                "visit_summary": "反复乏力、纳差 3 月，辨证为脾胃气虚。",
+            },
+        )
+        patient.user = user
+        patient.save(update_fields=["user"])
+

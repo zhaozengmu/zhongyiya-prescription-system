@@ -4,8 +4,12 @@
 - D3 中药与方剂字典：Herb、FormulaTemplate、FormulaItem、AuditRule
 - D4 处方与明细库：Prescription、PrescriptionItem
 """
-from django.db import models
+import logging
+
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 
 class Herb(models.Model):
@@ -13,6 +17,10 @@ class Herb(models.Model):
 
     支持道地药材产地溯源、炮制规格、功效主治、库存与近效期管理，
     拼音首字母用于医师开方高频检索（如输入 GC 检索甘草）。
+
+    单位约定（重要）：处方剂量 ``dose`` 单位为 **g**，
+    库存 ``stock`` 与预警线 ``stock_warning`` 单位为 **kg**，
+    两者换算比例为 1000，扣减库存时务必换算，否则会差 1000 倍。
     """
 
     name = models.CharField("药材名称", max_length=64, unique=True)
@@ -128,6 +136,13 @@ class AuditRule(models.Model):
 
     规则以数据形式存储，由管理员在线维护并记录版本，
     审核引擎按当前版本加载，实现规则与代码解耦。
+
+    ``herbs`` 语义：
+    - 18F（十八反）/19W（十九畏）：``A,B`` 表示 A 与 B 配伍禁忌；
+      若需表达「A 反 B/C/D」，请拆成多条规则或写 ``A:B,C,D``，
+      引擎按「首个药材 × 其余任一同组药材」判定。
+    - PR（妊娠禁忌）：任一味命中即触发。
+    - TX（毒性剂量上限）：逐味按 Herb.max_dose 校验。
     """
 
     RULE_TYPE_CHOICES = [
@@ -177,7 +192,7 @@ class Prescription(models.Model):
         ("ALERTED", "预警拦截"),
         ("REVIEWING", "初审中"),
         ("FINAL_REVIEWING", "复审中"),
-        ("APPROVED", "已通过"),
+        ("APPROVED", "已通过待缴费"),
         ("REJECTED", "已驳回"),
         ("DISPENSED", "已发药完结"),
     ]
@@ -203,6 +218,11 @@ class Prescription(models.Model):
     presc_type = models.CharField("处方类型", max_length=16, choices=TYPE_CHOICES, default="OUTPATIENT")
     status = models.CharField("状态", max_length=16, choices=STATUS_CHOICES, default="DRAFT", db_index=True)
     pay_status = models.CharField("缴费状态", max_length=16, choices=PAY_STATUS_CHOICES, default="UNPAID")
+    paid_at = models.DateTimeField("缴费时间", null=True, blank=True)
+    paid_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="paid_prescriptions", verbose_name="收费人",
+    )
     # 代煎处方字段
     decoction_note = models.CharField("代煎备注", max_length=200, blank=True)
     pickup_time = models.DateTimeField("取药时间", null=True, blank=True)
@@ -210,6 +230,8 @@ class Prescription(models.Model):
     # 打印/医嘱字段
     total_doses = models.IntegerField("剂数", default=1)
     dosage_note = models.CharField("服用医嘱", max_length=200, blank=True, default="遵医嘱，每日一剂，水煎分两次温服。")
+    # 预审结果快照（JSON），避免每次打开审核页都重跑全量规则
+    precheck_snapshot = models.TextField("预审结果快照", blank=True)
     version = models.IntegerField("版本号（乐观锁）", default=1)
     is_deleted = models.BooleanField("逻辑删除", default=False)
     created_at = models.DateTimeField("创建时间", auto_now_add=True, db_index=True)
@@ -222,10 +244,15 @@ class Prescription(models.Model):
             models.Index(fields=["status", "created_at"]),
             models.Index(fields=["doctor_id", "created_at"]),
             models.Index(fields=["patient_id", "created_at"]),
+            models.Index(fields=["pay_status", "status"]),
         ]
 
     def __str__(self):
         return self.presc_no
+
+    @property
+    def is_paid(self):
+        return self.pay_status == "PAID"
 
     @staticmethod
     def generate_presc_no():
@@ -245,6 +272,19 @@ class Prescription(models.Model):
                 seq = 1
         return f"P{prefix}{seq:04d}"
 
+    @classmethod
+    def create_with_generated_no(cls, max_retries=5, **kwargs):
+        """带重试的创建：并发下处方号可能撞唯一约束，重试比直接 500 友好。"""
+        last_error = None
+        for _ in range(max_retries):
+            try:
+                with transaction.atomic():
+                    return cls.objects.create(presc_no=cls.generate_presc_no(), **kwargs)
+            except IntegrityError as exc:  # 并发撞号，重新生成
+                last_error = exc
+                logger.warning("处方号生成冲突，重试中")
+        raise last_error
+
 
 class PrescriptionItem(models.Model):
     """处方明细（药味）。"""
@@ -263,6 +303,7 @@ class PrescriptionItem(models.Model):
         verbose_name_plural = "处方明细"
         # 联合唯一索引：同一处方不能重复录入同一药材
         unique_together = ("prescription", "herb")
+        indexes = [models.Index(fields=["herb", "prescription"])]
 
     def __str__(self):
         return f"{self.prescription.presc_no} - {self.herb.name}"

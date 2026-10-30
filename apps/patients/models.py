@@ -1,19 +1,11 @@
 """患者档案模型，对应数据存储 D2（患者档案库）。
 
-敏感字段（身份证号、联系电话）加密存储 + 哈希列等值查询，
+敏感字段（身份证号、联系电话）加密存储 + HMAC 哈希列等值查询，
 列表页掩码展示，详情页按权限解密。
 """
-import hashlib
-
-from django.db import models
 from django.conf import settings
-
-
-def _hash_id(value):
-    """对身份证号做哈希，用于等值查询。"""
-    if not value:
-        return ""
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+from django.db import models
+from django.utils import timezone
 
 
 class Patient(models.Model):
@@ -41,6 +33,15 @@ class Patient(models.Model):
     name = models.CharField("姓名", max_length=64)
     gender = models.CharField("性别", max_length=2, choices=GENDER_CHOICES, default="U")
     age = models.IntegerField("年龄", null=True, blank=True)
+    # 患者自注册账号关联（用于"我的处方"数据隔离）
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="patient_profile",
+        verbose_name="关联账号",
+    )
     # 敏感字段：身份证号与联系电话（加密存储）
     id_card_encrypted = models.TextField("身份证号密文", blank=True)
     id_card_hash = models.CharField("身份证号哈希", max_length=64, blank=True, db_index=True)
@@ -70,14 +71,8 @@ class Patient(models.Model):
     @staticmethod
     def generate_patient_no():
         """按规则自动生成患者编号。"""
-        from django.utils import timezone
-        now = timezone.now()
-        prefix = now.strftime("%Y%m%d")
-        last = (
-            Patient.objects.filter(patient_no__startswith=prefix)
-            .order_by("-patient_no")
-            .first()
-        )
+        prefix = timezone.now().strftime("%Y%m%d")
+        last = Patient.objects.filter(patient_no__startswith=prefix).order_by("-patient_no").first()
         seq = 1
         if last:
             try:
