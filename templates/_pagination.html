@@ -1,0 +1,25 @@
+{% load tcm_tags %}
+{% if page.paginator.num_pages > 1 %}
+<div class="pager">
+    <span>共 {{ page.paginator.count }} 条 · 第 {{ page.number }} / {{ page.paginator.num_pages }} 页</span>
+    <div class="links">
+        {% if page.has_previous %}
+        <a href="?{% url_replace page=page.previous_page_number %}" aria-label="上一页">
+            <i class="bi bi-chevron-left"></i>
+        </a>
+        {% endif %}
+        {% for num in page.paginator.page_range %}
+            {% if num == page.number %}
+            <span class="cur">{{ num }}</span>
+            {% elif num > page.number|add:-3 and num < page.number|add:3 %}
+            <a href="?{% url_replace page=num %}">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page.has_next %}
+        <a href="?{% url_replace page=page.next_page_number %}" aria-label="下一页">
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

@@ -1,54 +1,79 @@
 {% extends "base.html" %}
-{% block title %}患者管理{% endblock %}
+{% block title %}患者档案 - TCM-RMS{% endblock %}
+{% block crumb %}<span>档案与字典</span> / <b>患者档案</b>{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>👥 患者信息管理</h4>
-    <button class="btn btn-success" onclick="location.href='{% url 'prescriptions:prescription_create' %}'">新建处方</button>
+<div class="page-head">
+    <div>
+        <h1>患者档案</h1>
+        <p class="sub">共 {{ page.paginator.count }} 位患者 · 身份证与电话加密存储，列表仅显示掩码</p>
+    </div>
+    <div class="page-actions">
+        {% if can_create_presc %}
+        <a class="btn btn-sm btn-brand btn-icon" href="{% url 'prescriptions:prescription_create' %}">
+            <i class="bi bi-plus-lg"></i> 开具处方
+        </a>
+        {% endif %}
+    </div>
 </div>
 
-<form class="row g-2 mb-3">
-    <div class="col-md-3"><input type="text" name="name" class="form-control" placeholder="姓名" value="{{ request.GET.name }}"></div>
-    <div class="col-md-3"><input type="text" name="patient_no" class="form-control" placeholder="患者编号" value="{{ request.GET.patient_no }}"></div>
-    <div class="col-md-2">
-        <select name="gender" class="form-select">
+<div class="card">
+    <form class="filter-bar" method="get">
+        <input type="text" name="name" class="form-control form-control-sm" placeholder="姓名" value="{{ request.GET.name }}">
+        <input type="text" name="patient_no" class="form-control form-control-sm" placeholder="患者编号" value="{{ request.GET.patient_no }}">
+        <select name="gender" class="form-select form-select-sm">
             <option value="">全部性别</option>
             <option value="M" {% if request.GET.gender == 'M' %}selected{% endif %}>男</option>
             <option value="F" {% if request.GET.gender == 'F' %}selected{% endif %}>女</option>
         </select>
-    </div>
-    <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">筛选</button></div>
-</form>
+        <input type="number" name="age_min" class="form-control form-control-sm" style="max-width:96px;" placeholder="年龄≥" value="{{ request.GET.age_min }}">
+        <input type="number" name="age_max" class="form-control form-control-sm" style="max-width:96px;" placeholder="年龄≤" value="{{ request.GET.age_max }}">
+        <button class="btn btn-sm btn-brand" type="submit">筛选</button>
+        <a class="btn btn-sm btn-ghost" href="{% url 'patients:patient_list' %}">重置</a>
+    </form>
 
-<div class="card p-3">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr><th>患者编号</th><th>姓名</th><th>性别</th><th>年龄</th><th>身份证号</th><th>联系电话</th><th>孕产状态</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-        {% for p in page %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
             <tr>
-                <td>{{ p.patient_no }}</td>
-                <td>{{ p.name }}</td>
-                <td>{{ p.get_gender_display }}</td>
-                <td>{{ p.age|default:'-' }}</td>
-                <td class="masked">{{ p.masked_id_card|default:'-' }}</td>
-                <td class="masked">{{ p.masked_phone|default:'-' }}</td>
-                <td>{{ p.get_pregnancy_status_display }}</td>
-                <td><a href="{% url 'patients:patient_detail' p.pk %}" class="btn btn-sm btn-outline-primary">详情</a></td>
+                <th>患者编号</th><th>姓名</th><th>性别</th><th>年龄</th>
+                <th>身份证号</th><th>联系电话</th><th>孕产状态</th><th class="text-end">操作</th>
             </tr>
-        {% empty %}
-            <tr><td colspan="8" class="text-center text-muted">暂无患者数据</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% if page.has_other_pages %}
-    <nav>
-        <ul class="pagination pagination-sm">
-            {% if page.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page.previous_page_number }}">上一页</a></li>{% endif %}
-            <li class="page-item disabled"><span class="page-link">第 {{ page.number }} / {{ page.paginator.num_pages }} 页</span></li>
-            {% if page.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page.next_page_number }}">下一页</a></li>{% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+            </thead>
+            <tbody>
+            {% for p in page %}
+            <tr>
+                <td class="text-muted">{{ p.patient_no }}</td>
+                <td><a href="{% url 'patients:patient_detail' p.pk %}"><b>{{ p.name }}</b></a></td>
+                <td>{{ p.get_gender_display }}</td>
+                <td>{{ p.age|default:"—" }}</td>
+                <td class="masked">{{ p.masked_id_card|default:"—" }}</td>
+                <td class="masked">{{ p.masked_phone|default:"—" }}</td>
+                <td>
+                    {% if p.pregnancy_status == 'PREGNANT' %}
+                    <span class="pill pill-red">孕期</span>
+                    {% elif p.pregnancy_status == 'POSTPARTUM' %}
+                    <span class="pill pill-amber">产后</span>
+                    {% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-ghost" href="{% url 'patients:patient_detail' p.pk %}">详情</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-people"></i></span>
+                        <span class="ttl">还没有患者档案</span>
+                        <span class="hint">开方前需要先为患者建档，可通过接口或后台录入</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "_pagination.html" %}
 </div>
 {% endblock %}

@@ -1,52 +1,90 @@
 {% extends "base.html" %}
-{% block title %}处方详情 - TCM-RMS{% endblock %}
+{% load tcm_tags %}
+{% block title %}处方详情 {{ prescription.presc_no }} - TCM-RMS{% endblock %}
+{% block crumb %}<a href="{% url 'prescriptions:prescription_list' %}">处方管理</a> / <b>{{ prescription.presc_no }}</b>{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h4 class="mb-0 section-title">处方详情</h4>
-    <div class="d-flex gap-2">
-        <a href="{% url 'prescriptions:prescription_print' prescription.pk %}" target="_blank" class="btn btn-sm btn-brand">🖨 打印处方单</a>
-        <a href="{% url 'prescriptions:prescription_pdf' prescription.pk %}" class="btn btn-sm btn-outline-brand">⬇ 导出 PDF</a>
+<div class="page-head">
+    <div>
+        <h1>处方详情</h1>
+        <p class="sub">
+            <span class="pill {{ prescription.status|status_pill }}">{{ prescription.get_status_display }}</span>
+            <span class="pill {{ prescription.pay_status|pay_pill }}">{{ prescription.get_pay_status_display }}</span>
+            · 第 {{ prescription.version }} 版
+        </p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-sm btn-brand btn-icon" href="{% url 'prescriptions:prescription_print' prescription.pk %}" target="_blank">
+            <i class="bi bi-printer"></i> 打印处方笺
+        </a>
+        <a class="btn btn-sm btn-outline-brand btn-icon" href="{% url 'prescriptions:prescription_pdf' prescription.pk %}">
+            <i class="bi bi-file-earmark-pdf"></i> 导出 PDF
+        </a>
     </div>
 </div>
-<div class="card p-4">
-    <table class="table">
-        <tr><th style="width:150px;">处方号</th><td><strong>{{ prescription.presc_no }}</strong></td></tr>
-        <tr><th>患者</th><td>{{ prescription.patient.name }}</td></tr>
-        <tr><th>医师</th><td>{{ prescription.doctor.user.get_full_name }}</td></tr>
-        <tr><th>处方类型</th><td>{{ prescription.get_presc_type_display }}</td></tr>
-        <tr><th>诊断</th><td>{{ prescription.diagnosis|default:'-' }}</td></tr>
-        <tr><th>辨证结论</th><td>{{ prescription.syndrome|default:'-' }}</td></tr>
-        <tr><th>状态</th><td>
-            {% if prescription.status == 'APPROVED' or prescription.status == 'DISPENSED' %}
-                <span class="badge badge-status bg-success">{{ prescription.get_status_display }}</span>
-            {% elif prescription.status == 'REJECTED' or prescription.status == 'ALERTED' %}
-                <span class="badge badge-status bg-danger">{{ prescription.get_status_display }}</span>
-            {% elif prescription.status == 'DRAFT' %}
-                <span class="badge badge-status bg-secondary">{{ prescription.get_status_display }}</span>
-            {% else %}
-                <span class="badge badge-status bg-warning text-dark">{{ prescription.get_status_display }}</span>
-            {% endif %}
-        </td></tr>
-        <tr><th>缴费状态</th><td>{{ prescription.get_pay_status_display }}</td></tr>
-        <tr><th>版本号</th><td>v{{ prescription.version }}</td></tr>
-        {% if prescription.decoction_note %}
-        <tr><th>代煎备注</th><td>{{ prescription.decoction_note }}</td></tr>
-        {% endif %}
-        {% if prescription.pickup_time %}
-        <tr><th>取药时间</th><td>{{ prescription.pickup_time|date:"Y-m-d H:i" }}（取药人：{{ prescription.pickup_person|default:"-" }}）</td></tr>
-        {% endif %}
-    </table>
-    <h6 class="section-title">药味明细</h6>
-    <table class="table table-sm table-hover">
-        <thead><tr><th>药材</th><th>剂量</th><th>煎服法</th><th>用法用量</th></tr></thead>
-        <tbody>
-        {% for item in items %}
-            <tr><td><strong>{{ item.herb.name }}</strong>{% if item.herb.processing %}（{{ item.herb.processing }}）{% endif %}</td><td>{{ item.dose }}{{ item.unit }}</td><td>{{ item.decoction|default:'-' }}</td><td>{{ item.usage|default:'-' }}</td></tr>
-        {% empty %}
-            <tr><td colspan="4" class="text-muted">暂无药味</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    <a href="{% url 'prescriptions:prescription_list' %}" class="btn btn-outline-secondary">返回</a>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-info-circle"></i> 处方信息</div>
+                <dl class="kv">
+                    <dt>处方号</dt><dd><b>{{ prescription.presc_no }}</b></dd>
+                    <dt>患者</dt><dd>{{ prescription.patient.name }}（{{ prescription.patient.get_gender_display }} / {{ prescription.patient.age|default:"—" }}）</dd>
+                    <dt>医师</dt><dd>{{ prescription.doctor.user.get_full_name|default:prescription.doctor.user.username }}</dd>
+                    <dt>类型</dt><dd>{{ prescription.get_presc_type_display }}</dd>
+                    <dt>剂数</dt><dd>{{ prescription.total_doses }} 剂</dd>
+                    <dt>诊断</dt><dd>{{ prescription.diagnosis|default:"—" }}</dd>
+                    <dt>辨证</dt><dd>{{ prescription.syndrome|default:"—" }}</dd>
+                    <dt>医嘱</dt><dd>{{ prescription.dosage_note|default:"—" }}</dd>
+                    {% if prescription.decoction_note %}
+                    <dt>代煎备注</dt><dd>{{ prescription.decoction_note }}</dd>
+                    {% endif %}
+                    {% if prescription.pickup_time %}
+                    <dt>取药</dt><dd>{{ prescription.pickup_time|date:"Y-m-d H:i" }}{% if prescription.pickup_person %} · {{ prescription.pickup_person }}{% endif %}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-flower2"></i> 药味明细（{{ items|length }} 味）</div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead><tr><th>#</th><th>药材</th><th>剂量</th><th>煎服法</th><th>用法用量</th></tr></thead>
+                        <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="text-muted">{{ forloop.counter }}</td>
+                            <td>
+                                <b>{{ item.herb.name }}</b>
+                                {% if item.herb.processing %}<span class="text-muted small">（{{ item.herb.processing }}）</span>{% endif %}
+                            </td>
+                            <td>{{ item.dose }}{{ item.unit }}</td>
+                            <td>{{ item.decoction|default:"—" }}</td>
+                            <td class="text-muted">{{ item.usage|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5">
+                            <div class="empty">
+                                <span class="ico"><i class="bi bi-capsule"></i></span>
+                                <span class="ttl">暂无药味</span>
+                                <span class="hint">草稿状态下可继续录入药味明细</span>
+                            </div>
+                        </td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a class="btn btn-ghost" href="{% url 'prescriptions:prescription_list' %}">返回列表</a>
 </div>
 {% endblock %}

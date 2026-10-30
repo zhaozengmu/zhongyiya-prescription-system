@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}无访问权限{% endblock %}
+{% block breadcrumb %}<span>无访问权限</span>{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="max-width:520px;margin:64px auto;">
+  <div class="empty-state__icon" style="font-size:44px;color:var(--warn);">
+    <i class="bi bi-shield-lock"></i>
+  </div>
+  <h2 class="empty-state__title">当前角色无权访问此功能</h2>
+  <p class="empty-state__desc">
+    {{ deny_message|default:"你所在的岗位没有该操作的权限。若确需使用，请联系系统管理员为角色补充权限后再试。" }}
+  </p>
+  <div class="d-flex gap-2 justify-content-center mt-3">
+    <a href="{% url 'users:home' %}" class="btn btn-primary">回到工作台</a>
+    <a href="{% url 'users:profile' %}" class="btn btn-ghost">查看我的权限</a>
+  </div>
+</div>
+{% endblock %}

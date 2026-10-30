@@ -1,38 +1,72 @@
 {% extends "base.html" %}
-{% block title %}我的处方{% endblock %}
+{% load tcm_tags %}
+{% block title %}处方管理 - TCM-RMS{% endblock %}
+{% block crumb %}<span>业务处理</span> / <b>处方管理</b>{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4>📋 处方开具管理</h4>
-    <a href="{% url 'prescriptions:prescription_create' %}" class="btn btn-success">+ 新建处方</a>
+<div class="page-head">
+    <div>
+        <h1>处方管理</h1>
+        <p class="sub">我开具的全部处方，可查看详情、打印处方笺或继续编辑草稿</p>
+    </div>
+    <div class="page-actions">
+        <a href="{% url 'prescriptions:prescription_create' %}" class="btn btn-brand btn-icon">
+            <i class="bi bi-plus-lg"></i> 新建处方
+        </a>
+    </div>
 </div>
-<div class="card p-3">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr><th>处方号</th><th>患者</th><th>类型</th><th>诊断</th><th>状态</th><th>缴费</th><th>创建时间</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-        {% for p in prescriptions %}
+
+<div class="card">
+    <form class="filter-bar" method="get">
+        <input class="form-control form-control-sm" type="search" name="q" value="{{ q }}"
+               placeholder="处方号 / 患者姓名">
+        <select class="form-select form-select-sm" name="status">
+            <option value="">全部状态</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}" {% if status == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-brand" type="submit">筛选</button>
+        <a class="btn btn-sm btn-ghost" href="{% url 'prescriptions:prescription_list' %}">重置</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
             <tr>
-                <td>{{ p.presc_no }}</td>
+                <th>处方号</th><th>患者</th><th>类型</th><th>诊断</th>
+                <th>状态</th><th>缴费</th><th>创建时间</th><th class="text-end">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for p in prescriptions %}
+            <tr>
+                <td><a href="{% url 'prescriptions:prescription_detail' p.pk %}">{{ p.presc_no }}</a></td>
                 <td>{{ p.patient.name }}</td>
                 <td>{{ p.get_presc_type_display }}</td>
-                <td>{{ p.diagnosis|default:'-' }}</td>
-                <td>
-                    {% if p.status == 'DRAFT' %}<span class="badge bg-secondary">{{ p.get_status_display }}</span>
-                    {% elif p.status == 'APPROVED' or p.status == 'DISPENSED' %}<span class="badge bg-success">{{ p.get_status_display }}</span>
-                    {% elif p.status == 'REJECTED' %}<span class="badge bg-danger">{{ p.get_status_display }}</span>
-                    {% elif p.status == 'ALERTED' %}<span class="badge bg-danger">{{ p.get_status_display }}</span>
-                    {% elif p.status == 'FINAL_REVIEWING' %}<span class="badge bg-info text-dark">{{ p.get_status_display }}</span>
-                    {% else %}<span class="badge bg-warning">{{ p.get_status_display }}</span>{% endif %}
+                <td>{{ p.diagnosis|default:"—"|truncatechars:18 }}</td>
+                <td><span class="pill {{ p.status|status_pill }}">{{ p.get_status_display }}</span></td>
+                <td><span class="pill {{ p.pay_status|pay_pill }}">{{ p.get_pay_status_display }}</span></td>
+                <td class="text-muted">{{ p.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-ghost" href="{% url 'prescriptions:prescription_detail' p.pk %}">详情</a>
+                    <a class="btn btn-sm btn-ghost" href="{% url 'prescriptions:prescription_print' p.pk %}" target="_blank">打印</a>
                 </td>
-                <td>{% if p.pay_status == 'PAID' %}<span class="badge bg-success">已缴费</span>{% else %}<span class="badge bg-light text-dark">未缴费</span>{% endif %}</td>
-                <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
-                <td><a href="{% url 'prescriptions:prescription_detail' p.pk %}" class="btn btn-sm btn-outline-primary">详情</a></td>
             </tr>
-        {% empty %}
-            <tr><td colspan="8" class="text-center text-muted">暂无处方</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            {% empty %}
+            <tr>
+                <td colspan="8">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-journal-medical"></i></span>
+                        <span class="ttl">还没有处方</span>
+                        <span class="hint">从上方「新建处方」开始，可引用经典方剂一键带出药味</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "_pagination.html" %}
 </div>
 {% endblock %}

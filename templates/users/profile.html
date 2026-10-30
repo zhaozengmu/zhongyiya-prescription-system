@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}个人中心 - TCM-RMS{% endblock %}
+{% block crumb %}<b>个人中心</b>{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>个人中心</h1>
+        <p class="sub">当前账号的角色与权限（RBAC 三级权限中的角色授权结果）</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div style="width:52px;height:52px;border-radius:50%;background:var(--brand-100);color:var(--brand-700);
+                                display:grid;place-items:center;font-size:19px;font-weight:600;">
+                        {{ user.first_name|default:user.username|slice:":1" }}
+                    </div>
+                    <div>
+                        <div style="font-size:15px;font-weight:600;">{{ user.get_full_name|default:user.username }}</div>
+                        <div class="text-muted" style="font-size:12.5px;">{{ user.username }}</div>
+                    </div>
+                </div>
+                <dl class="kv">
+                    <dt>手机号</dt><dd>{{ user.phone|default:"—" }}</dd>
+                    <dt>最近登录</dt><dd>{{ user.last_login|date:"Y-m-d H:i"|default:"—" }}</dd>
+                    <dt>账号状态</dt>
+                    <dd>
+                        {% if is_locked %}
+                        <span class="pill pill-red">已锁定（剩 {{ lock_minutes }} 分钟）</span>
+                        {% else %}<span class="pill pill-green">正常</span>{% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-person-badge"></i> 我的角色</div>
+                {% for name, desc in roles %}
+                <div class="d-flex align-items-center gap-2 py-2" style="border-bottom:1px solid var(--line);">
+                    <span class="pill pill-green">{{ name }}</span>
+                    <span class="text-muted small">{{ desc|default:"—" }}</span>
+                </div>
+                {% empty %}
+                <div class="text-muted small py-2">尚未分配角色，请联系管理员</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-shield-lock"></i> 已授予权限（{{ perms|length }} 项）</div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for p in perms %}
+                    <span class="pill pill-gray">{{ p }}</span>
+                    {% empty %}
+                    <span class="text-muted small">暂无权限</span>
+                    {% endfor %}
+                </div>
+                <div class="form-text mt-3">
+                    系统按「菜单—操作—接口」三级校验：菜单不显示仅代表没有入口，接口层同样会二次校验权限。
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

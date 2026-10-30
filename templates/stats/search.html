@@ -1,54 +1,119 @@
 {% extends "base.html" %}
-{% block title %}历史检索{% endblock %}
+{% block title %}历史检索 - TCM-RMS{% endblock %}
+{% block crumb %}<span>工作台</span> / <b>历史处方检索</b>{% endblock %}
+
 {% block content %}
-<h4 class="mb-3">🔎 历史处方检索</h4>
-<div class="card p-3">
-    <form class="row g-2 mb-3" onsubmit="doSearch(event)">
-        <div class="col-md-2">
-            <select name="status" class="form-select">
-                <option value="">全部状态</option>
-                <option value="DRAFT">草稿</option>
-                <option value="SUBMITTED">待预审</option>
-                <option value="PRECHECKED">已预审</option>
-                <option value="ALERTED">预警拦截</option>
-                <option value="REVIEWING">复核中</option>
-                <option value="APPROVED">已通过</option>
-                <option value="REJECTED">已驳回</option>
-                <option value="DISPENSED">已发药完结</option>
-            </select>
-        </div>
-        <div class="col-md-2"><input type="text" name="doctor" class="form-control" placeholder="医师"></div>
-        <div class="col-md-2"><input type="text" name="patient" class="form-control" placeholder="患者"></div>
-        <div class="col-md-2"><input type="date" name="start" class="form-control"></div>
-        <div class="col-md-2"><input type="date" name="end" class="form-control"></div>
-        <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">检索</button></div>
+<div class="page-head">
+    <div>
+        <h1>历史处方检索</h1>
+        <p class="sub">按状态、医师、患者、日期区间组合查询，支持进一步导出</p>
+    </div>
+</div>
+
+<div class="card">
+    <form class="filter-bar" id="searchForm">
+        <select name="status" class="form-select form-select-sm" style="max-width:150px;">
+            <option value="">全部状态</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="doctor" class="form-control form-control-sm" style="max-width:130px;" placeholder="医师账号">
+        <input type="text" name="patient" class="form-control form-control-sm" style="max-width:130px;" placeholder="患者姓名">
+        <input type="date" name="start" class="form-control form-control-sm" style="max-width:150px;">
+        <input type="date" name="end" class="form-control form-control-sm" style="max-width:150px;">
+        <button type="submit" class="btn btn-sm btn-brand">检索</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="resetBtn">重置</button>
     </form>
-    <table class="table table-sm table-striped">
-        <thead><tr><th>处方号</th><th>患者</th><th>医师</th><th>状态</th><th>创建时间</th></tr></thead>
-        <tbody id="resultBody">
-            <tr><td colspan="5" class="text-muted">输入条件后点击检索</td></tr>
-        </tbody>
-    </table>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr><th>处方号</th><th>患者</th><th>医师</th><th>状态</th><th>缴费</th><th>创建时间</th></tr>
+            </thead>
+            <tbody id="resultBody">
+            <tr>
+                <td colspan="6">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-search"></i></span>
+                        <span class="ttl">输入条件后点击「检索」</span>
+                        <span class="hint">不填条件将返回最近提交的处方</span>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pager" id="searchPager" style="display:none;">
+        <span id="searchTotal"></span>
+        <div class="links">
+            <a href="#" id="prevPage"><i class="bi bi-chevron-left"></i></a>
+            <a href="#" id="nextPage"><i class="bi bi-chevron-right"></i></a>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    async function doSearch(e) {
-        e.preventDefault();
-        const form = e.target;
-        const params = new URLSearchParams(new FormData(form));
-        const resp = await fetch('/api/v1/search/prescriptions?' + params.toString());
-        const json = await resp.json();
+    (function () {
+        const form = document.getElementById('searchForm');
         const body = document.getElementById('resultBody');
-        if (json.code !== 200) { body.innerHTML = '<tr><td colspan="5">' + json.message + '</td></tr>'; return; }
-        if (json.data.items.length === 0) {
-            body.innerHTML = '<tr><td colspan="5" class="text-muted">无结果</td></tr>';
-            return;
+        const pager = document.getElementById('searchPager');
+        const totalEl = document.getElementById('searchTotal');
+        let page = 1;
+        let pages = 1;
+
+        function row(it) {
+            return `<tr>
+                <td>${it.presc_no}</td>
+                <td>${it.patient_name}</td>
+                <td>${it.doctor_name}</td>
+                <td><span class="pill pill-gray">${it.status}</span></td>
+                <td><span class="pill ${it.pay_status === '已缴费' ? 'pill-green' : 'pill-gray'}">${it.pay_status}</span></td>
+                <td class="text-muted">${it.created_at}</td>
+            </tr>`;
         }
-        body.innerHTML = json.data.items.map(it => `
-            <tr><td>${it.presc_no}</td><td>${it.patient_name}</td><td>${it.doctor_name}</td><td>${it.status}</td><td>${it.created_at}</td></tr>
-        `).join('');
-    }
+
+        async function run(resetPage) {
+            if (resetPage) page = 1;
+            const params = new URLSearchParams(new FormData(form));
+            params.set('page', page);
+            const resp = await fetch('/api/v1/search/prescriptions?' + params.toString());
+            const json = await resp.json();
+            if (json.code !== 200) {
+                body.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">${json.message}</td></tr>`;
+                return;
+            }
+            const items = json.data.items || [];
+            if (!items.length) {
+                body.innerHTML = `<tr><td colspan="6">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-inbox"></i></span>
+                        <span class="ttl">没有匹配的处方</span>
+                        <span class="hint">试试放宽日期区间或清空筛选条件</span>
+                    </div></td></tr>`;
+                pager.style.display = 'none';
+                return;
+            }
+            body.innerHTML = items.map(row).join('');
+            pages = Math.ceil(json.data.total / json.data.page_size) || 1;
+            totalEl.textContent = `共 ${json.data.total} 条 · 第 ${page} / ${pages} 页`;
+            pager.style.display = 'flex';
+            document.getElementById('prevPage').style.opacity = page <= 1 ? .4 : 1;
+            document.getElementById('nextPage').style.opacity = page >= pages ? .4 : 1;
+        }
+
+        form.addEventListener('submit', (e) => { e.preventDefault(); run(true); });
+        document.getElementById('resetBtn').addEventListener('click', () => { form.reset(); run(true); });
+        document.getElementById('prevPage').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (page > 1) { page -= 1; run(false); }
+        });
+        document.getElementById('nextPage').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (page < pages) { page += 1; run(false); }
+        });
+    })();
 </script>
 {% endblock %}

@@ -1,162 +1,105 @@
-{% load static %}
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录 - TCM-RMS 中医处方开具与审核管理系统</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #06281e 0%, #0c4534 45%, #17714f 100%);
-            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-            padding: 20px;
-        }
-        .login-card {
-            width: 100%;
-            max-width: 420px;
-            background: #fff;
-            border-radius: 22px;
-            padding: 44px 48px 36px;
-            text-align: center;
-        }
-        .logo {
-            width: 72px;
-            height: 72px;
-            margin: 0 auto 16px;
-            background: linear-gradient(135deg, #2ba871, #1a8a5c);
-            border-radius: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .title {
-            font-size: 30px;
-            font-weight: 700;
-            color: #1f2937;
-            letter-spacing: 1px;
-        }
-        .subtitle {
-            font-size: 13px;
-            color: #8a94a0;
-            margin: 6px 0 30px;
-        }
-        .field { text-align: left; margin-bottom: 18px; }
-        .field label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 8px;
-        }
-        .field input {
-            width: 100%;
-            height: 46px;
-            border: 1px solid #d8dee4;
-            border-radius: 12px;
-            padding: 0 14px;
-            font-size: 14px;
-            color: #1f2937;
-            outline: none;
-            transition: border-color .2s, box-shadow .2s;
-        }
-        .field input:focus {
-            border-color: #2ba871;
-            box-shadow: 0 0 0 3px rgba(43, 168, 113, .15);
-        }
-        .field input::placeholder { color: #b6bdc5; }
-        .btn-login {
-            width: 100%;
-            height: 48px;
-            margin-top: 6px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #27a06a, #1a8a5c);
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 8px;
-            cursor: pointer;
-            transition: opacity .2s;
-        }
-        .btn-login:hover { opacity: .9; }
-        .register-link {
-            margin-top: 16px;
-            font-size: 13px;
-            color: #8a94a0;
-        }
-        .register-link a {
-            color: #1a8a5c;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .register-link a:hover { text-decoration: underline; }
-        .demo-accounts {
-            margin-top: 22px;
-            font-size: 12px;
-            color: #9aa3ad;
-            line-height: 1.9;
-        }
-        .footer-note {
-            margin-top: 10px;
-            font-size: 12px;
-            color: #b6bdc5;
-        }
-        .alert-msg {
-            background: #fdecec;
-            border: 1px solid #f5c2c2;
-            color: #c0392b;
-            font-size: 13px;
-            border-radius: 10px;
-            padding: 9px 12px;
-            margin-bottom: 16px;
-            text-align: left;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{% static 'css/app.css' %}" rel="stylesheet">
+    <link href="{% static 'css/auth.css' %}" rel="stylesheet">
 </head>
-<body>
-    <div class="login-card">
-        <div class="logo">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                <rect x="9.2" y="2.6" width="8" height="15" rx="4" transform="rotate(45 9.2 2.6)" fill="#ffffff"/>
-                <rect x="11.2" y="9.4" width="4" height="7.5" transform="rotate(45 11.2 9.4)" fill="#1a8a5c"/>
-            </svg>
+<body class="auth-body">
+<div class="auth-shell">
+
+    <aside class="auth-aside">
+        <div class="auth-brand">
+            <span class="mark"><i class="bi bi-flower2"></i></span>
+            <span>
+                <b>TCM-RMS</b>
+                <small>中医处方开具与审核管理系统</small>
+            </span>
         </div>
-        <div class="title">TCM-RMS</div>
-        <div class="subtitle">中医处方开具与审核管理系统</div>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert-msg">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+        <div class="auth-pitch">
+            <h2>规则化预审<br>加药师双级复核</h2>
+            <p>十八反、十九畏、妊娠禁忌、毒性剂量六类规则实时校验，初审与复审分岗留痕。</p>
+            <ul class="auth-points">
+                <li><i class="bi bi-check2"></i> 结构化开方，模板一键引用</li>
+                <li><i class="bi bi-check2"></i> 处方全流程状态机管控</li>
+                <li><i class="bi bi-check2"></i> 敏感信息加密与掩码展示</li>
+                <li><i class="bi bi-check2"></i> 操作全量留痕可追溯</li>
+            </ul>
+        </div>
 
-        <form method="post">
-            {% csrf_token %}
-            <div class="field">
-                <label for="username">账号</label>
-                <input type="text" id="username" name="username" placeholder="请输入账号" required>
+        <div class="auth-foot">课程实训系统 · 全程使用模拟数据 · 禁止用于真实诊疗</div>
+    </aside>
+
+    <main class="auth-main">
+        <div class="auth-card">
+            <h1>登录</h1>
+            <p class="auth-sub">请使用院内分配的账号进入系统</p>
+
+            {% if messages %}
+                {% for message in messages %}
+                <div class="auth-alert">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span>{{ message }}</span>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" class="auth-form">
+                {% csrf_token %}
+                <label class="auth-field">
+                    <span>账号</span>
+                    <span class="input-wrap">
+                        <i class="bi bi-person"></i>
+                        <input type="text" name="username" placeholder="请输入账号" autocomplete="username" required autofocus>
+                    </span>
+                </label>
+
+                <label class="auth-field">
+                    <span>密码</span>
+                    <span class="input-wrap">
+                        <i class="bi bi-lock"></i>
+                        <input type="password" name="password" id="pwd" placeholder="请输入密码" autocomplete="current-password" required>
+                        <button type="button" class="pwd-toggle" id="pwdToggle" aria-label="显示密码">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </span>
+                </label>
+
+                <button type="submit" class="btn-brand auth-submit">登 录</button>
+            </form>
+
+            <div class="auth-links">
+                还没有账号？<a href="{% url 'users:register' %}">注册新账号</a>
             </div>
-            <div class="field">
-                <label for="password">密码</label>
-                <input type="password" id="password" name="password" placeholder="请输入密码" required>
+
+            <div class="auth-demo">
+                <div class="auth-demo-title">演示账号（密码均为 rx123456）</div>
+                <div class="auth-demo-grid">
+                    <span><b>管理员</b> admin1</span>
+                    <span><b>医师</b> doctor1</span>
+                    <span><b>药师</b> pharmacist1</span>
+                    <span><b>复审</b> pharmacist2</span>
+                    <span><b>收费</b> cashier1</span>
+                    <span><b>药房</b> pharmacy1</span>
+                    <span><b>患者</b> patient1</span>
+                </div>
             </div>
-            <button type="submit" class="btn-login">登录</button>
-        </form>
-
-        <div class="register-link">
-            还没有账号？<a href="{% url 'users:register' %}">注册新账号</a>
         </div>
+    </main>
+</div>
 
-        <div class="demo-accounts">
-            演示账号：doctor1 / rx123456 &nbsp; pharmacist1 / rx123456<br>
-            admin1 / rx123456
-        </div>
-        <div class="footer-note">课程实训系统 · 仅使用模拟数据</div>
-    </div>
+<script>
+    document.getElementById('pwdToggle').addEventListener('click', function () {
+        const input = document.getElementById('pwd');
+        const icon = this.querySelector('i');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+    });
+</script>
 </body>
 </html>

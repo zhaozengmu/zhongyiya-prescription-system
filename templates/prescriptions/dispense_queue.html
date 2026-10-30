@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load tcm_tags %}
+{% block title %}发药窗口 - TCM-RMS{% endblock %}
+{% block crumb %}<span>业务处理</span> / <b>发药窗口</b>{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>发药窗口</h1>
+        <p class="sub">已缴费处方确认发药 · 发药后按「剂量 × 剂数」自动扣减药材库存</p>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body pb-2">
+                <div class="panel-title"><i class="bi bi-box-seam"></i> 待发药处方</div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr><th>处方号</th><th>患者</th><th>医师</th><th>类型</th><th>剂数</th><th>缴费时间</th><th class="text-end">操作</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for p in prescriptions %}
+                    <tr>
+                        <td><b>{{ p.presc_no }}</b></td>
+                        <td>{{ p.patient.name }}</td>
+                        <td>{{ p.doctor.user.get_full_name|default:p.doctor.user.username }}</td>
+                        <td>{{ p.get_presc_type_display }}</td>
+                        <td>{{ p.total_doses }}</td>
+                        <td class="text-muted">{{ p.paid_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-ghost" href="{% url 'prescriptions:prescription_print' p.pk %}" target="_blank">处方笺</a>
+                            <button class="btn btn-sm btn-brand btn-icon" data-dispense="{{ p.pk }}">
+                                <i class="bi bi-check2-square"></i> 确认发药
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty">
+                                <span class="ico" style="background:var(--ok-bg);color:var(--ok)"><i class="bi bi-check2-circle"></i></span>
+                                <span class="ttl">没有待发药处方</span>
+                                <span class="hint">收费窗口完成缴费后，处方会进入本队列</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include "_pagination.html" %}
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-clock-history"></i> 最近已发药</div>
+                {% for p in recent %}
+                <div class="d-flex justify-content-between align-items-center py-2"
+                     style="border-bottom:1px solid var(--line);">
+                    <div>
+                        <div style="font-size:13px;">{{ p.presc_no }}</div>
+                        <div class="text-muted" style="font-size:12px;">{{ p.patient.name }} · {{ p.updated_at|date:"m-d H:i" }}</div>
+                    </div>
+                    <span class="pill pill-green">已发药</span>
+                </div>
+                {% empty %}
+                <div class="text-muted small py-3">暂无发药记录</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-dispense]');
+        if (!btn) return;
+        if (!confirm('确认饮片已核对完毕并完成发药？发药后将扣减库存且不可撤销。')) return;
+        btn.disabled = true;
+        try {
+            const res = await tcmApi(`/api/v1/reviews/${btn.dataset.dispense}/dispense`, {
+                method: 'POST', body: { checked_herbs: true }
+            });
+            tcmToast(res.message, 'success');
+            setTimeout(() => location.reload(), 700);
+        } catch (err) {
+            tcmToast(err.message, 'error');
+            btn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

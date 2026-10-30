@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load tcm_tags %}
+{% block title %}我的处方 - TCM-RMS{% endblock %}
+{% block crumb %}<b>我的处方</b>{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>我的处方</h1>
+        <p class="sub">仅显示与本账号关联的处方，其他患者的处方按权限隔离不可见</p>
+    </div>
+</div>
+
+{% if not has_profile %}
+<div class="alert alert-warning">
+    当前账号尚未关联患者档案。请联系门诊收费处或管理员，将手机号与档案绑定后即可查询本人处方。
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr><th>处方号</th><th>开方医师</th><th>处方类型</th><th>诊断</th><th>状态</th><th>缴费</th><th>开方时间</th><th class="text-end">操作</th></tr>
+            </thead>
+            <tbody>
+            {% for p in prescriptions %}
+            <tr>
+                <td><b>{{ p.presc_no }}</b></td>
+                <td>{{ p.doctor.user.get_full_name|default:p.doctor.user.username }}</td>
+                <td>{{ p.get_presc_type_display }}</td>
+                <td>{{ p.diagnosis|default:"—"|truncatechars:16 }}</td>
+                <td><span class="pill {{ p.status|status_pill }}">{{ p.get_status_display }}</span></td>
+                <td><span class="pill {{ p.pay_status|pay_pill }}">{{ p.get_pay_status_display }}</span></td>
+                <td class="text-muted">{{ p.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-ghost" href="{% url 'prescriptions:prescription_detail' p.pk %}">查看</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-journal-text"></i></span>
+                        <span class="ttl">暂无处方记录</span>
+                        <span class="hint">医师开方并提交后，你的处方会出现在这里</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "_pagination.html" %}
+</div>
+{% endblock %}

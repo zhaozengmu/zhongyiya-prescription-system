@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}医师资料 - TCM-RMS{% endblock %}
+{% block crumb %}<span>档案与字典</span> / <b>医师资料</b>{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>医师资料</h1>
+        <p class="sub">共 {{ doctors|length }} 位在职医师 · 执业证号与开方量</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead><tr><th>姓名</th><th>账号</th><th>科室</th><th>职称</th><th>执业证号</th></tr></thead>
+            <tbody>
+            {% for d in doctors %}
+            <tr>
+                <td><b>{{ d.user.get_full_name|default:d.user.username }}</b></td>
+                <td class="text-muted">{{ d.user.username }}</td>
+                <td>{{ d.department|default:"—" }}</td>
+                <td>{{ d.title|default:"—" }}</td>
+                <td class="masked">{{ d.license_no|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-person-badge"></i></span>
+                        <span class="ttl">暂无医师档案</span>
+                        <span class="hint">由管理员在后台为医师账号创建档案后显示</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

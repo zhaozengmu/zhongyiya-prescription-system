@@ -1,34 +1,77 @@
 {% extends "base.html" %}
-{% block title %}审核工作台{% endblock %}
+{% load tcm_tags %}
+{% block title %}审核工作台 - TCM-RMS{% endblock %}
+{% block crumb %}<span>业务处理</span> / <b>审核工作台</b>{% endblock %}
+
 {% block content %}
-<h4 class="mb-3">🔍 处方审核工作台</h4>
-<div class="card p-3">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr><th>处方号</th><th>患者</th><th>医师</th><th>状态</th><th>提交时间</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-        {% for p in queue %}
+<div class="page-head">
+    <div>
+        <h1>审核工作台</h1>
+        <p class="sub">预警拦截优先排队，初审通过后自动流转复审</p>
+    </div>
+</div>
+
+<div class="metric-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+    <div class="metric is-warn">
+        <div class="label"><i class="bi bi-inbox"></i> 队列总数</div>
+        <div class="value">{{ stats.total }}</div>
+    </div>
+    <div class="metric is-danger">
+        <div class="label"><i class="bi bi-shield-exclamation"></i> 预警拦截</div>
+        <div class="value">{{ stats.alerted }}</div>
+        <div class="foot">需填写异常备注后放行</div>
+    </div>
+    <div class="metric">
+        <div class="label"><i class="bi bi-1-circle"></i> 待初审</div>
+        <div class="value">{{ stats.initial }}</div>
+    </div>
+    <div class="metric is-info">
+        <div class="label"><i class="bi bi-2-circle"></i> 待复审</div>
+        <div class="value">{{ stats.final }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr><th>处方号</th><th>患者</th><th>开方医师</th><th>状态</th><th>提交时间</th><th class="text-end">操作</th></tr>
+            </thead>
+            <tbody>
+            {% for p in queue %}
             <tr>
-                <td>{{ p.presc_no }}</td>
+                <td><a href="{% url 'reviews:review_detail' p.pk %}">{{ p.presc_no }}</a></td>
                 <td>{{ p.patient.name }}</td>
                 <td>{{ p.doctor.user.get_full_name|default:p.doctor.user.username }}</td>
-                <td>
-                    {% if p.status == 'ALERTED' %}<span class="badge bg-danger">{{ p.get_status_display }}</span>
-                    {% elif p.status == 'SUBMITTED' %}<span class="badge bg-secondary">{{ p.get_status_display }}</span>
-                    {% elif p.status == 'FINAL_REVIEWING' %}<span class="badge bg-info text-dark">{{ p.get_status_display }}</span>
-                    {% else %}<span class="badge bg-warning">{{ p.get_status_display }}</span>{% endif %}
-                </td>
-                <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
-                <td>
-                    {% if p.status == 'FINAL_REVIEWING' %}<span class="small text-muted">待复审</span>
-                    {% else %}<a href="{% url 'reviews:review_detail' p.pk %}" class="btn btn-sm btn-outline-primary">审核</a>{% endif %}
+                <td><span class="pill {{ p.status|status_pill }}">{{ p.get_status_display }}</span></td>
+                <td class="text-muted">{{ p.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end">
+                    {% if p.status == 'FINAL_REVIEWING' and not can_final_review %}
+                    <a href="{% url 'reviews:review_detail' p.pk %}" class="btn btn-sm btn-ghost btn-icon">
+                        <i class="bi bi-eye"></i> 查看
+                    </a>
+                    {% else %}
+                    <a href="{% url 'reviews:review_detail' p.pk %}" class="btn btn-sm btn-brand btn-icon">
+                        <i class="bi bi-clipboard2-check"></i>
+                        {% if p.status == 'FINAL_REVIEWING' %}复审{% else %}审核{% endif %}
+                    </a>
+                    {% endif %}
                 </td>
             </tr>
-        {% empty %}
-            <tr><td colspan="6" class="text-center text-muted">暂无待审处方</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            {% empty %}
+            <tr>
+                <td colspan="6">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-check2-all"></i></span>
+                        <span class="ttl">队列已清空</span>
+                        <span class="hint">当前没有待审核处方，医师提交后会出现在这里</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "_pagination.html" %}
 </div>
 {% endblock %}

@@ -1,241 +1,313 @@
 {% extends "base.html" %}
-{% block title %}新建处方{% endblock %}
+{% block title %}新建处方 - TCM-RMS{% endblock %}
+{% block crumb %}<a href="{% url 'prescriptions:prescription_list' %}">处方管理</a> / <b>新建处方</b>{% endblock %}
+
 {% block content %}
-<h4 class="mb-3">📝 新建处方</h4>
-<div class="card p-4">
-    <form id="prescForm" class="row g-3">
-        {% csrf_token %}
-        <div class="col-md-4">
-            <label class="form-label">选择患者</label>
-            <select name="patient_id" class="form-select" required>
-                <option value="">请选择患者</option>
-                {% for p in patients %}
-                    <option value="{{ p.id }}">{{ p.name }}（{{ p.patient_no }}）</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">诊断</label>
-            <input type="text" name="diagnosis" class="form-control" placeholder="如：风寒感冒">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">辨证结论</label>
-            <input type="text" name="syndrome" class="form-control" placeholder="如：风寒束表证">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">处方类型</label>
-            <select name="presc_type" class="form-select" id="prescType">
-                <option value="OUTPATIENT">门诊处方</option>
-                <option value="INPATIENT">住院处方</option>
-                <option value="DECOCTION">代煎处方</option>
-            </select>
-        </div>
-        <div class="col-md-8">
-            <label class="form-label">方剂模板（一键引用）</label>
-            <select id="formulaSelect" class="form-select">
-                <option value="">选择方剂模板</option>
-                {% for f in templates %}
-                    <option value="{{ f.id }}">{{ f.name }}（{{ f.indication }}）</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div id="decoctionFields" class="col-12" style="display:none;">
-            <div class="row g-2">
-                <div class="col-md-4">
-                    <label class="form-label small">代煎备注</label>
-                    <input type="text" name="decoction_note" class="form-control" placeholder="如：浓煎，一日两次">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small">取药时间</label>
-                    <input type="datetime-local" name="pickup_time" class="form-control">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small">取药人</label>
-                    <input type="text" name="pickup_person" class="form-control" placeholder="取药人姓名">
-                </div>
-            </div>
-        </div>
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <label class="form-label mb-0">药味明细</label>
-                <input type="text" id="herbSearch" class="form-control form-control-sm" style="max-width:240px;" placeholder="🔍 搜索药材（名称/拼音首字母，如 GC 甘草）">
-            </div>
-            <table class="table table-sm" id="itemTable">
-                <thead><tr><th>药材</th><th>剂量(g)</th><th>煎服法</th><th>用法用量</th><th></th></tr></thead>
-                <tbody id="itemBody">
-                    <tr>
-                        <td>
-                            <select class="form-select herb-select">
-                                <option value="">选择药材</option>
-                                {% for h in herbs %}<option value="{{ h.id }}" data-initial="{{ h.pinyin_initial }}" data-name="{{ h.name }}">{{ h.name }}（{{ h.pinyin_initial }}）{% if h.is_toxic %}⚠️{% endif %}</option>{% endfor %}
-                            </select>
-                        </td>
-                        <td><input type="number" step="0.01" class="form-control dose-input" placeholder="剂量"></td>
-                        <td><input type="text" class="form-control decoction-input" placeholder="如：先煎/后下/包煎"></td>
-                        <td><input type="text" class="form-control usage-input" placeholder="如：水煎服，日一剂"></td>
-                        <td><button type="button" class="btn btn-sm btn-danger remove-row">×</button></td>
-                    </tr>
-                </tbody>
-            </table>
-            <button type="button" class="btn btn-sm btn-outline-primary" id="addRow">+ 添加药味</button>
-        </div>
-        <div class="col-12 d-flex gap-2">
-            <button type="button" class="btn btn-secondary" id="saveDraftBtn">保存草稿</button>
-            <button type="button" class="btn btn-success" id="submitBtn">提交预审</button>
-        </div>
-    </form>
+<div class="page-head">
+    <div>
+        <h1>新建处方</h1>
+        <p class="sub">可引用经典方剂一键带出药味，保存草稿后再提交预审</p>
+    </div>
 </div>
+
+<form id="prescForm" class="row g-3">
+    {% csrf_token %}
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-clipboard2-pulse"></i> 基本信息</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="patientId">选择患者</label>
+                        <select name="patient_id" id="patientId" class="form-select" required>
+                            <option value="">请选择患者</option>
+                            {% for p in patients %}
+                            <option value="{{ p.id }}">{{ p.name }}（{{ p.patient_no }}）</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="prescType">处方类型</label>
+                        <select name="presc_type" id="prescType" class="form-select">
+                            <option value="OUTPATIENT">门诊处方</option>
+                            <option value="INPATIENT">住院处方</option>
+                            <option value="DECOCTION">代煎处方</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="diagnosis">诊断</label>
+                        <input type="text" name="diagnosis" id="diagnosis" class="form-control" placeholder="如：风寒感冒">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="syndrome">辨证结论</label>
+                        <input type="text" name="syndrome" id="syndrome" class="form-control" placeholder="如：风寒束表证">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="totalDoses">剂数</label>
+                        <input type="number" name="total_doses" id="totalDoses" class="form-control" value="7" min="1" max="60">
+                        <div class="form-text">发药时按「剂量 × 剂数」扣减库存</div>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label" for="dosageNote">服用医嘱</label>
+                        <input type="text" name="dosage_note" id="dosageNote" class="form-control"
+                               value="遵医嘱，每日一剂，水煎分两次温服。">
+                    </div>
+                </div>
+
+                <div id="decoctionFields" class="row g-3 mt-1" style="display:none;">
+                    <div class="col-md-4">
+                        <label class="form-label" for="decoctionNote">代煎备注</label>
+                        <input type="text" name="decoction_note" id="decoctionNote" class="form-control" placeholder="如：浓煎，一日两次">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="pickupTime">取药时间</label>
+                        <input type="datetime-local" name="pickup_time" id="pickupTime" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="pickupPerson">取药人</label>
+                        <input type="text" name="pickup_person" id="pickupPerson" class="form-control" placeholder="取药人姓名">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div class="panel-title mb-0"><i class="bi bi-flower2"></i> 药味明细</div>
+                    <div class="d-flex gap-2">
+                        <input type="search" id="herbSearch" class="form-control form-control-sm" style="width:220px;"
+                               placeholder="搜索药材（如 GC / 甘草）">
+                        <button type="button" class="btn btn-sm btn-outline-brand btn-icon" id="addRow">
+                            <i class="bi bi-plus-lg"></i> 添加药味
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table" id="itemTable">
+                        <thead>
+                        <tr>
+                            <th style="width:30%">药材</th>
+                            <th style="width:14%">剂量 (g)</th>
+                            <th style="width:20%">煎服法</th>
+                            <th style="width:26%">用法用量</th>
+                            <th style="width:40px"></th>
+                        </tr>
+                        </thead>
+                        <tbody id="itemBody"></tbody>
+                    </table>
+                </div>
+                <div class="text-muted small">共 <b id="itemCount">0</b> 味药</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-magic"></i> 方剂模板</div>
+                <select id="formulaSelect" class="form-select">
+                    <option value="">选择方剂一键带出</option>
+                    {% for f in templates %}
+                    <option value="{{ f.id }}">{{ f.name }}{% if f.indication %}（{{ f.indication }}）{% endif %}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text mb-3">引用后仍可逐味调整剂量</div>
+
+                <div class="divider"></div>
+
+                <div class="panel-title"><i class="bi bi-check2-square"></i> 操作</div>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-brand" id="submitBtn">保存并提交预审</button>
+                    <button type="button" class="btn btn-ghost" id="saveDraftBtn">仅保存草稿</button>
+                    <a class="btn btn-ghost" href="{% url 'prescriptions:prescription_list' %}">取消返回</a>
+                </div>
+                <div class="alert alert-info py-2 mt-3 mb-0 small">
+                    提交时系统会自动执行配伍禁忌、毒性剂量、用法规范六类规则预审；命中拦截规则将转人工复核。
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<template id="rowTpl">
+    <tr>
+        <td>
+            <select class="form-select herb-select">
+                <option value="">选择药材</option>
+                {% for h in herbs %}
+                <option value="{{ h.id }}" data-initial="{{ h.pinyin_initial }}" data-name="{{ h.name }}">
+                    {{ h.name }}（{{ h.pinyin_initial }}）{% if h.is_toxic %}· 毒性{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td><input type="number" step="0.5" min="0.5" max="500" class="form-control dose-input" placeholder="剂量"></td>
+        <td>
+            <select class="form-select decoction-input">
+                <option value="">常规水煎</option>
+                <option value="先煎">先煎</option>
+                <option value="后下">后下</option>
+                <option value="包煎">包煎</option>
+                <option value="另煎">另煎</option>
+                <option value="烊化">烊化</option>
+                <option value="冲服">冲服</option>
+            </select>
+        </td>
+        <td><input type="text" class="form-control usage-input" placeholder="如：水煎服，日一剂"></td>
+        <td><button type="button" class="btn btn-sm btn-ghost remove-row" aria-label="删除">&times;</button></td>
+    </tr>
+</template>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    let currentPrescId = null;
-
-    // 代煎字段显示切换
-    document.getElementById('prescType').addEventListener('change', (e) => {
-        document.getElementById('decoctionFields').style.display = (e.target.value === 'DECOCTION') ? 'block' : 'none';
-    });
-
-    // 药材拼音首字母检索
-    document.getElementById('herbSearch').addEventListener('input', (e) => {
-        const q = e.target.value.trim().toLowerCase();
-        document.querySelectorAll('.herb-select option').forEach(opt => {
-            if (!opt.value) return; // 保留占位
-            const initial = (opt.dataset.initial || '').toLowerCase();
-            const name = (opt.dataset.name || '').toLowerCase();
-            opt.hidden = q !== '' && !initial.startsWith(q) && !name.includes(q);
-        });
-    });
-
-    function collectItems() {
-        const items = [];
-        document.querySelectorAll('#itemBody tr').forEach(row => {
-            const herbId = row.querySelector('.herb-select').value;
-            const dose = row.querySelector('.dose-input').value;
-            if (herbId && dose) {
-                items.push({
-                    herb_id: parseInt(herbId),
-                    dose: parseFloat(dose),
-                    decoction: row.querySelector('.decoction-input').value,
-                    usage: row.querySelector('.usage-input').value
-                });
-            }
-        });
-        return items;
-    }
-
-    function getFormData() {
-        const form = document.getElementById('prescForm');
-        return {
-            patient_id: parseInt(form.patient_id.value),
-            diagnosis: form.diagnosis.value,
-            syndrome: form.syndrome.value,
-            presc_type: form.presc_type.value,
-            decoction_note: form.decoction_note.value,
-            pickup_time: form.pickup_time.value,
-            pickup_person: form.pickup_person.value
-        };
-    }
-
-    function getCsrf() {
-        return document.querySelector('[name=csrfmiddlewaretoken]').value;
-    }
-
-    document.getElementById('addRow').addEventListener('click', () => {
+    (function () {
+        let currentPrescId = null;
         const tbody = document.getElementById('itemBody');
-        const tr = tbody.querySelector('tr').cloneNode(true);
-        tr.querySelectorAll('input').forEach(i => i.value = '');
-        tr.querySelector('.herb-select').value = '';
-        tbody.appendChild(tr);
-    });
+        const rowTpl = document.getElementById('rowTpl');
 
-    document.getElementById('itemBody').addEventListener('click', (e) => {
-        if (e.target.classList.contains('remove-row')) {
-            if (document.querySelectorAll('#itemBody tr').length > 1) {
-                e.target.closest('tr').remove();
-            }
+        function addRow(herbId, dose, decoction, usage) {
+            const frag = rowTpl.content.cloneNode(true);
+            const tr = frag.querySelector('tr');
+            if (herbId) tr.querySelector('.herb-select').value = String(herbId);
+            if (dose) tr.querySelector('.dose-input').value = dose;
+            if (decoction) tr.querySelector('.decoction-input').value = decoction;
+            if (usage) tr.querySelector('.usage-input').value = usage;
+            tbody.appendChild(tr);
+            refreshCount();
         }
-    });
 
-    document.getElementById('formulaSelect').addEventListener('change', async (e) => {
-        const id = e.target.value;
-        if (!id) return;
-        const resp = await fetch(`/api/v1/formulas/${id}`);
-        const json = await resp.json();
-        if (json.code === 200) {
-            const tbody = document.getElementById('itemBody');
-            tbody.innerHTML = '';
-            json.data.items.forEach(it => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><select class="form-select herb-select"><option value="${it.herb_id}" selected>${it.herb__name}</option></select></td>
-                    <td><input type="number" step="0.01" class="form-control dose-input" value="${it.dose}"></td>
-                    <td><input type="text" class="form-control decoction-input" placeholder="如：先煎/后下/包煎"></td>
-                    <td><input type="text" class="form-control usage-input" placeholder="如：水煎服，日一剂"></td>
-                    <td><button type="button" class="btn btn-sm btn-danger remove-row">×</button></td>
-                `;
-                tbody.appendChild(tr);
+        function refreshCount() {
+            document.getElementById('itemCount').textContent = tbody.querySelectorAll('tr').length;
+        }
+
+        addRow();
+
+        document.getElementById('prescType').addEventListener('change', (e) => {
+            document.getElementById('decoctionFields').style.display =
+                e.target.value === 'DECOCTION' ? 'flex' : 'none';
+        });
+
+        document.getElementById('herbSearch').addEventListener('input', (e) => {
+            const q = e.target.value.trim().toLowerCase();
+            document.querySelectorAll('.herb-select').forEach((sel) => {
+                Array.from(sel.options).forEach((opt) => {
+                    if (!opt.value) return;
+                    const initial = (opt.dataset.initial || '').toLowerCase();
+                    const name = (opt.dataset.name || '').toLowerCase();
+                    opt.hidden = q !== '' && !initial.startsWith(q) && !name.includes(q);
+                });
             });
-        }
-    });
-
-    async function createPrescription() {
-        const resp = await fetch('/api/v1/prescriptions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-            body: JSON.stringify(getFormData())
         });
-        return await resp.json();
-    }
 
-    async function saveItems() {
-        if (!currentPrescId) return;
-        const resp = await fetch(`/api/v1/prescriptions/${currentPrescId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-            body: JSON.stringify({ items: collectItems() })
-        });
-        return await resp.json();
-    }
+        document.getElementById('addRow').addEventListener('click', () => addRow());
 
-    document.getElementById('saveDraftBtn').addEventListener('click', async () => {
-        if (!currentPrescId) {
-            const created = await createPrescription();
-            if (created.code !== 200) { alert(created.message); return; }
-            currentPrescId = created.data.id;
-        }
-        const saved = await saveItems();
-        if (saved.code === 200) {
-            alert('草稿已保存');
-            location.href = '{% url "prescriptions:prescription_list" %}';
-        } else {
-            alert(saved.message);
-        }
-    });
-
-    document.getElementById('submitBtn').addEventListener('click', async () => {
-        if (!currentPrescId) {
-            const created = await createPrescription();
-            if (created.code !== 200) { alert(created.message); return; }
-            currentPrescId = created.data.id;
-        }
-        await saveItems();
-        const resp = await fetch(`/api/v1/prescriptions/${currentPrescId}/submit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-            body: JSON.stringify({})
-        });
-        const json = await resp.json();
-        if (json.code === 200) {
-            let msg = '提交成功，当前状态：' + json.data.status;
-            if (json.data.precheck && json.data.precheck.blocked) {
-                msg += '\n⚠️ 命中强制拦截规则：' + json.data.precheck.result_text;
+        tbody.addEventListener('click', (e) => {
+            if (!e.target.closest('.remove-row')) return;
+            if (tbody.querySelectorAll('tr').length > 1) {
+                e.target.closest('tr').remove();
+                refreshCount();
+            } else {
+                tcmToast('至少保留一味药材', 'warning');
             }
-            alert(msg);
-            location.href = '{% url "prescriptions:prescription_list" %}';
-        } else {
-            alert(json.message);
+        });
+
+        document.getElementById('formulaSelect').addEventListener('change', async (e) => {
+            const id = e.target.value;
+            if (!id) return;
+            try {
+                const res = await tcmApi(`/api/v1/formulas/${id}`);
+                tbody.innerHTML = '';
+                (res.data.items || []).forEach((it) => {
+                    addRow(it.herb_id, it.dose, '', '');
+                });
+                if (!res.data.items || !res.data.items.length) addRow();
+                tcmToast(`已引用「${res.data.name}」共 ${res.data.items.length} 味`, 'success');
+            } catch (err) {
+                tcmToast(err.message, 'error');
+            }
+        });
+
+        function collectItems() {
+            const items = [];
+            const seen = new Set();
+            tbody.querySelectorAll('tr').forEach((row) => {
+                const herbId = row.querySelector('.herb-select').value;
+                const dose = row.querySelector('.dose-input').value;
+                if (!herbId || !dose) return;
+                if (seen.has(herbId)) {
+                    tcmToast('同一味药材不能重复录入', 'warning');
+                    throw new Error('duplicate herb');
+                }
+                seen.add(herbId);
+                items.push({
+                    herb_id: parseInt(herbId, 10),
+                    dose: parseFloat(dose),
+                    decoction: row.querySelector('.decoction-input').value || '',
+                    usage: row.querySelector('.usage-input').value || ''
+                });
+            });
+            return items;
         }
-    });
+
+        function formPayload() {
+            const form = document.getElementById('prescForm');
+            return {
+                patient_id: parseInt(form.patientId.value, 10) || null,
+                diagnosis: form.diagnosis.value,
+                syndrome: form.syndrome.value,
+                presc_type: form.prescType.value,
+                total_doses: parseInt(form.totalDoses.value, 10) || 1,
+                dosage_note: form.dosageNote.value,
+                decoction_note: form.decoctionNote.value,
+                pickup_time: form.pickupTime.value,
+                pickup_person: form.pickupPerson.value
+            };
+        }
+
+        async function createPrescription() {
+            const payload = formPayload();
+            if (!payload.patient_id) throw new Error('请先选择患者');
+            const res = await tcmApi('/api/v1/prescriptions', { method: 'POST', body: payload });
+            currentPrescId = res.data.id;
+            return res;
+        }
+
+        async function saveItems() {
+            if (!currentPrescId) throw new Error('处方尚未创建');
+            const items = collectItems();
+            if (!items.length) throw new Error('请至少录入一味药材');
+            return tcmApi(`/api/v1/prescriptions/${currentPrescId}`, { method: 'PUT', body: { items: items } });
+        }
+
+        document.getElementById('saveDraftBtn').addEventListener('click', async () => {
+            try {
+                await createPrescription();
+                await saveItems();
+                tcmToast('草稿已保存', 'success');
+                setTimeout(() => { location.href = '{% url "prescriptions:prescription_list" %}'; }, 700);
+            } catch (err) {
+                tcmToast(err.message, 'error');
+            }
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            try {
+                await createPrescription();
+                await saveItems();
+                const res = await tcmApi(`/api/v1/prescriptions/${currentPrescId}/submit`, { method: 'POST', body: {} });
+                const blocked = res.data.precheck && res.data.precheck.blocked;
+                tcmToast(blocked ? '已提交，命中强制拦截规则，转药师人工复核' : '已提交预审', blocked ? 'warning' : 'success');
+                setTimeout(() => { location.href = '{% url "prescriptions:prescription_list" %}'; }, 1000);
+            } catch (err) {
+                tcmToast(err.message, 'error');
+                btn.disabled = false;
+            }
+        });
+    })();
 </script>
 {% endblock %}

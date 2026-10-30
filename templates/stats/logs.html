@@ -1,28 +1,62 @@
 {% extends "base.html" %}
-{% block title %}操作日志{% endblock %}
+{% block title %}操作日志 - TCM-RMS{% endblock %}
+{% block crumb %}<span>系统</span> / <b>操作日志</b>{% endblock %}
+
 {% block content %}
-<h4 class="mb-3">📜 操作日志</h4>
-<div class="card p-3">
-    <table class="table table-sm table-striped">
-        <thead><tr><th>时间</th><th>操作人</th><th>行为</th><th>对象</th><th>详情</th><th>IP</th><th>结果</th></tr></thead>
-        <tbody>
-        {% for log in logs %}
+<div class="page-head">
+    <div>
+        <h1>操作日志</h1>
+        <p class="sub">共 {{ page.paginator.count }} 条 · 登录、开方、审核、缴费、发药、导出全量留痕</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-sm btn-outline-brand btn-icon" href="/api/v1/export/logs">
+            <i class="bi bi-download"></i> 导出日志
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <form class="filter-bar" method="get">
+        <input type="text" name="operator" class="form-control form-control-sm" placeholder="操作人账号" value="{{ operator }}">
+        <input type="text" name="action" class="form-control form-control-sm" placeholder="动作（如 LOGIN / REVIEW）" value="{{ action }}">
+        <button class="btn btn-sm btn-brand" type="submit">筛选</button>
+        <a class="btn btn-sm btn-ghost" href="{% url 'stats:logs' %}">重置</a>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+            <tr><th style="width:150px">时间</th><th>操作人</th><th>行为</th><th>对象</th><th>详情</th><th>IP</th><th>结果</th></tr>
+            </thead>
+            <tbody>
+            {% for log in logs %}
             <tr>
-                <td>{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
-                <td>{{ log.operator.username|default:'-' }}</td>
-                <td>{{ log.action_type }}</td>
-                <td>{{ log.object_type }}#{{ log.object_id }}</td>
-                <td>{{ log.detail|default:'-' }}</td>
-                <td>{{ log.ip|default:'-' }}</td>
+                <td class="text-muted">{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ log.operator.username|default:"—" }}</td>
+                <td><span class="pill pill-gray">{{ log.action_type }}</span></td>
+                <td class="text-muted">{{ log.object_type }}#{{ log.object_id }}</td>
+                <td>{{ log.detail|default:"—" }}</td>
+                <td class="masked">{{ log.ip|default:"—" }}</td>
                 <td>
-                    {% if log.result == 'success' %}<span class="badge bg-success">成功</span>
-                    {% else %}<span class="badge bg-danger">{{ log.result }}</span>{% endif %}
+                    {% if log.result == 'success' %}<span class="pill pill-green">成功</span>
+                    {% elif log.result == 'denied' %}<span class="pill pill-amber">拒绝</span>
+                    {% else %}<span class="pill pill-red">{{ log.result }}</span>{% endif %}
                 </td>
             </tr>
-        {% empty %}
-            <tr><td colspan="7" class="text-muted text-center">暂无日志</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            {% empty %}
+            <tr>
+                <td colspan="7">
+                    <div class="empty">
+                        <span class="ico"><i class="bi bi-journal-text"></i></span>
+                        <span class="ttl">暂无日志</span>
+                        <span class="hint">换个筛选条件，或等待系统产生操作记录</span>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "_pagination.html" %}
 </div>
 {% endblock %}
