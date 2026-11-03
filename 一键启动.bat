@@ -70,6 +70,12 @@ if not exist "db.sqlite3" (
     %PYEXE% manage.py seed_prescriptions
 )
 
+rem 带参数时直接转发给 manage.py，例如：一键启动.bat check / migrate / shell
+if not "%~1"=="" (
+    %PYEXE% manage.py %*
+    goto END
+)
+
 rem ============ 第 5 步：端口占用检测 ============
 netstat -ano | findstr /C:"127.0.0.1:%PORT%" | findstr /C:"LISTENING" >nul
 if not errorlevel 1 (
@@ -77,12 +83,6 @@ if not errorlevel 1 (
     echo 检测到 %PORT% 端口已被占用：可能上次启动的窗口还没关。
     echo 已为你打开浏览器；若要重启，请先关闭占用该端口的窗口再运行。
     start "" "http://127.0.0.1:%PORT%/"
-    goto END
-)
-
-rem 带参数时直接转发给 manage.py，例如：一键启动.bat check / migrate / shell
-if not "%~1"=="" (
-    %PYEXE% manage.py %*
     goto END
 )
 
