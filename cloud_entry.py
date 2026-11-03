@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """云端（公网）启动入口 —— 与本地 一键启动.bat 完全独立。
 
 用途：
@@ -37,8 +36,8 @@ os.environ.setdefault("DATA_ENCRYPTION_KEY", "Zm9yLWNsb3VkLWRlbW8tb25seS1rZXktMz
 
 def bootstrap_data() -> None:
     """建表 + 补齐演示数据；已经初始化过就跳过，避免每次启动重复写入。"""
-    from django.core.management import call_command
     from django.contrib.auth import get_user_model
+    from django.core.management import call_command
 
     call_command("migrate", interactive=False, verbosity=0)
 

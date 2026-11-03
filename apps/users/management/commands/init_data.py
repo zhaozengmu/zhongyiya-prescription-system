@@ -471,7 +471,6 @@ class Command(BaseCommand):
         """
         from apps.clinic.models import MedicalRecord, MedicalRecordRequest, Registration
         from apps.patients.models import Patient
-        from datetime import date as _date
 
         today = timezone.localdate()
         patients = {p.name: p for p in Patient.objects.filter(is_deleted=False)}

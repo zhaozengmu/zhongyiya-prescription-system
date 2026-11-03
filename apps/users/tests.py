@@ -2,7 +2,8 @@
 
 背景：``/`` 曾经没有任何路由，直接打开 8000 端口会撞上 Django 的 404 调试页，
 用户看到 ``The empty path didn't match any of these``。这里守住三件事：
-匿名访问必须先到登录页、各角色登录后落到有权访问的页面、落地页本身不能 403。
+匿名访问能看到门户封面（而不是 404）、各角色登录后落到有权访问的页面、
+落地页本身不能 403。
 """
 from django.test import Client, TestCase
 
@@ -19,11 +20,12 @@ def grant(user, *perm_codes):
 
 
 class HomeRedirectTests(TestCase):
-    def test_root_redirects_anonymous_to_login(self):
-        """未登录访问根路径应跳登录页，而不是 404。"""
+    def test_root_renders_landing_for_anonymous(self):
+        """未登录访问根路径应看到门户封面（200），既不是 404 也不是直接跳走。"""
         r = Client().get("/")
-        self.assertEqual(r.status_code, 302)
-        self.assertEqual(r["Location"], "/login/")
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, "landing.html")
+        self.assertContains(r, "/login/")
 
     def test_root_redirects_admin_to_dashboard(self):
         grant(User.objects.create_user("landing_admin", password="pw123456"), "统计:读")
