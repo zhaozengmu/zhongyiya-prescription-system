@@ -1,18 +1,34 @@
 /* 登录 / 注册页：左侧品牌叙事 + 右侧表单，与主系统共用设计令牌 */
 
+/* 认证页统一用 border-box：
+   否则 .input-wrap input 的 width:100% 会再叠加 76px 内边距，
+   在窄屏上直接把输入框撑出卡片、把验证码图片挤出屏幕。
+   仅作用于认证页，不影响后台管理界面。 */
+.auth-body,
+.auth-body *,
+.auth-body *::before,
+.auth-body *::after { box-sizing: border-box; }
+
 .auth-body {
   margin: 0;
   min-height: 100vh;
   background: var(--paper);
   font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: var(--ink-900);
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .auth-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
   min-height: 100vh;
+  max-width: 100%;
 }
+
+/* 栅格项默认 min-width:auto，内容一宽就顶出视口；显式归零才能随屏收缩 */
+.auth-shell > * { min-width: 0; }
+
 
 /* ---------- 左侧品牌区 ---------- */
 .auth-aside {
@@ -216,7 +232,15 @@
 .auth-form.compact { gap: 12px; }
 
 @media (max-width: 900px) {
-  .auth-shell { grid-template-columns: 1fr; }
+  .auth-shell { grid-template-columns: minmax(0, 1fr); }
   .auth-aside { display: none; }
   .auth-main { padding: 32px 20px; }
+}
+
+/* 窄屏：触控目标加大，字号收紧，保证验证码整块可见 */
+@media (max-width: 480px) {
+  .auth-main { padding: 24px 16px; }
+  .auth-card { max-width: 100%; }
+  .input-wrap input { height: 46px; font-size: 15px; }
+  .auth-submit { height: 46px; }
 }

@@ -10,11 +10,13 @@
     <style>
         .auth-logo { background: #fff; border-radius: 10px; padding: 4px 8px; display: inline-block; }
         .auth-logo img { display: block; height: 34px; width: auto; }
-        .cap-row { display: flex; gap: 10px; align-items: stretch; }
-        .cap-row .input-wrap { flex: 1; }
+        .cap-row { display: flex; gap: 10px; align-items: stretch; min-width: 0; }
+        .cap-row .input-wrap { flex: 1 1 auto; min-width: 0; }
+        .cap-row .input-wrap input { padding-right: 12px; }
         .cap-img {
-            width: 126px; height: 44px; border: 1px solid var(--line-strong, #d3cfc2);
-            border-radius: 10px; cursor: pointer; background: #f2f8f4; object-fit: cover;
+            flex: 0 0 auto; box-sizing: border-box;
+            width: 120px; height: 44px; border: 1px solid var(--line-strong, #d3cfc2);
+            border-radius: 10px; cursor: pointer; background: #f2f8f4; object-fit: contain;
         }
         .cap-hint { font-size: 12px; color: var(--ink-300, #98a49c); margin-top: 4px; display: flex; gap: 5px; align-items: center; }
         .auth-note {
@@ -23,7 +25,9 @@
         }
         .auth-note b { color: #1a5f47; }
         @media (max-width: 480px) {
-            .cap-img { width: 108px; }
+            .cap-row { gap: 8px; }
+            .cap-img { width: 118px; height: 44px; border-radius: 8px; }
+            .cap-row .input-wrap input { height: 44px; font-size: 13.5px; }
         }
     </style>
 </head>
