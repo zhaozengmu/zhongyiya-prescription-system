@@ -2,6 +2,10 @@
 chcp 936 >nul
 setlocal
 cd /d "%~dp0"
+
+rem 统一 Python 输出编码为 GBK：若系统开了 PYTHONUTF8=1，
+rem 直接输出 UTF-8 会在 cp936 窗口里变成乱码
+set "PYTHONIOENCODING=gbk:replace"
 title 中医处方开具与审核管理系统 - 一键启动
 
 set "VENV=.venv"
@@ -70,7 +74,8 @@ rem ============ 第 5 步：端口占用检测 ============
 netstat -ano | findstr /C:"127.0.0.1:%PORT%" | findstr /C:"LISTENING" >nul
 if not errorlevel 1 (
     echo.
-    echo 服务已在运行，直接为你打开浏览器。
+    echo 检测到 %PORT% 端口已被占用：可能上次启动的窗口还没关。
+    echo 已为你打开浏览器；若要重启，请先关闭占用该端口的窗口再运行。
     start "" "http://127.0.0.1:%PORT%/"
     goto END
 )
