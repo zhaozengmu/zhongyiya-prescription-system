@@ -91,10 +91,10 @@
         border: 1px solid #cfe3d8; border-radius: 999px; padding: 6px 13px; font-weight: 600;
     }
     .hero h1 { font-size: 44px; line-height: 1.22; letter-spacing: -0.5px; margin: 20px 0 16px; font-weight: 700; }
-    .hero h1 em { color: var(--brand-700); font-style: normal; position: relative; }
-    .hero h1 em::after {
-        content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 9px;
-        background: rgba(47, 138, 102, .16); border-radius: 3px; z-index: -1;
+    .hero h1 em {
+        color: var(--brand-700); font-style: normal; padding: 0 3px;
+        background: linear-gradient(180deg, transparent 64%, rgba(47, 138, 102, .16) 64%,
+                    rgba(47, 138, 102, .16) 94%, transparent 94%);
     }
     .hero p.lead { font-size: 15.5px; color: var(--ink-700); max-width: 520px; }
     .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 30px; }
