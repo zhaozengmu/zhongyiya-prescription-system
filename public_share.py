@@ -25,7 +25,10 @@ CLOUDFLARED_URL = "https://github.com/cloudflare/cloudflared/releases/latest/dow
 URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 
 try:
-    sys.stdout.reconfigure(encoding="gbk", errors="replace")
+    # 只有在真实控制台（cp936 窗口）里才切 GBK；
+    # 输出被重定向/走管道时保持 UTF-8，否则中文会变成乱码。
+    if sys.stdout.isatty():
+        sys.stdout.reconfigure(encoding="gbk", errors="replace")
 except Exception:
     pass
 
