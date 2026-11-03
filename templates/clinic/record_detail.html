@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}病历 {{ record.record_no }} - TCM-RMS{% endblock %}
+{% block extra_css %}
+<link href="{% static 'css/clinic.css' %}" rel="stylesheet">
+<style>
+    @media print {
+        .sidebar, .topbar, .page-actions, .no-print { display: none !important; }
+        .content { padding: 0 !important; }
+        .main { margin: 0 !important; }
+        .paper { border: none; box-shadow: none; }
+    }
+</style>
+{% endblock %}
+{% block crumb %}
+<a href="{% url 'clinic:workbench' %}">诊室工作台</a> / <b>电子病历</b>
+{% endblock %}
+{% block page_name %}电子病历{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>电子病历</h1>
+        <p class="sub">{{ record.record_no }} · {% if record.is_signed %}已签发{% else %}草稿（可修改）{% endif %}</p>
+    </div>
+    <div class="page-actions">
+        {% if can_edit %}
+        <a class="btn btn-sm btn-outline-brand" href="{% url 'clinic:record_edit' record.pk %}"><i class="bi bi-pencil"></i> 编辑</a>
+        {% endif %}
+        {% if can_prescribe %}
+        <a class="btn btn-sm btn-brand" href="{% url 'prescriptions:prescription_create' %}?patient={{ patient.pk }}&record={{ record.pk }}">
+            <i class="bi bi-journal-plus"></i> 为本次就诊开方
+        </a>
+        {% endif %}
+        <button class="btn btn-sm btn-ghost" onclick="window.print()"><i class="bi bi-printer"></i> 打印</button>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-9">
+        <div class="paper">
+            <div class="paper-head">
+                <h2>中医门诊电子病历</h2>
+                <div class="sub">贵州中医药大学时珍学院 · 中医处方开具与审核管理系统</div>
+            </div>
+
+            <div class="paper-meta">
+                <span>姓名：<b>{{ patient.name }}</b></span>
+                <span>性别：<b>{{ patient.get_gender_display }}</b></span>
+                <span>年龄：<b>{{ patient.age|default:"—" }}</b></span>
+                <span>病案号：<b>{{ patient.record_no|default:patient.patient_no }}</b></span>
+                <span>就诊日期：<b>{{ record.created_at|date:"Y-m-d H:i" }}</b></span>
+                <span>医师：<b>{{ record.doctor }}</b></span>
+            </div>
+
+            <div class="paper-section">
+                <h3>主诉</h3>
+                <div class="paper-text">{{ record.chief_complaint }}</div>
+            </div>
+
+            <div class="paper-section">
+                <h3>现病史 / 既往史</h3>
+                <div class="paper-text {% if not record.present_illness %}muted{% endif %}">
+                    {{ record.present_illness|default:"未填写" }}</div>
+                <div class="paper-text {% if not record.past_history %}muted{% endif %}" style="margin-top:6px;">
+                    {{ record.past_history|default:"未填写" }}</div>
+            </div>
+
+            <div class="paper-section">
+                <h3>过敏史 / 家族史</h3>
+                <div class="dx-grid">
+                    <div class="dx-item"><span class="k">过敏史</span>
+                        <span class="v" {% if record.allergy_history %}style="color:var(--danger)"{% endif %}>
+                            {{ record.allergy_history|default:"未记录" }}</span></div>
+                    <div class="dx-item"><span class="k">家族史</span>
+                        <span class="v">{{ record.family_history|default:"未记录" }}</span></div>
+                </div>
+            </div>
+
+            <div class="paper-section">
+                <h3>中医四诊</h3>
+                <div class="dx-grid">
+                    <div class="dx-item"><span class="k">望诊</span><span class="v">{{ record.inspection|default:"—" }}</span></div>
+                    <div class="dx-item"><span class="k">闻诊</span><span class="v">{{ record.auscultation|default:"—" }}</span></div>
+                    <div class="dx-item"><span class="k">问诊</span><span class="v">{{ record.inquiry|default:"—" }}</span></div>
+                    <div class="dx-item"><span class="k">切诊</span><span class="v">{{ record.palpation|default:"—" }}</span></div>
+                </div>
+            </div>
+
+            <div class="paper-section">
+                <h3>生命体征</h3>
+                <div class="vital-grid">
+                    <div class="vital"><div class="k">体温</div><div class="v">{{ record.temperature|default:"—" }} ℃</div></div>
+                    <div class="vital"><div class="k">脉搏</div><div class="v">{{ record.pulse|default:"—" }} 次/分</div></div>
+                    <div class="vital"><div class="k">呼吸</div><div class="v">{{ record.respiration|default:"—" }} 次/分</div></div>
+                    <div class="vital"><div class="k">血压</div><div class="v">{{ record.blood_pressure|default:"—" }}</div></div>
+                </div>
+            </div>
+
+            <div class="paper-section">
+                <h3>诊断与治法</h3>
+                <div class="dx-grid">
+                    <div class="dx-item"><span class="k">中医诊断</span><span class="v">{{ record.tcm_diagnosis|default:"—" }}</span></div>
+                    <div class="dx-item"><span class="k">中医证型</span><span class="v">{{ record.syndrome|default:"—" }}</span></div>
+                    <div class="dx-item"><span class="k">西医诊断</span><span class="v">{{ record.western_diagnosis|default:"—" }}</span></div>
+                    <div class="dx-item"><span class="k">治法</span><span class="v">{{ record.treatment|default:"—" }}</span></div>
+                </div>
+            </div>
+
+            <div class="paper-section">
+                <h3>医嘱与调护</h3>
+                <div class="paper-text {% if not record.advice %}muted{% endif %}">{{ record.advice|default:"未填写" }}</div>
+            </div>
+
+            <div class="paper-sign">
+                <span>医师签名：<b>{{ record.doctor }}</b></span>
+                <span>签发时间：{{ record.signed_at|date:"Y-m-d H:i"|default:"—" }}</span>
+                {% if record.is_signed %}<span class="sign-stamp">已签发</span>{% else %}<span class="pill pill-amber">草稿</span>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 no-print">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-journal-medical me-1"></i> 关联处方</div>
+            <div class="card-body">
+                {% if prescription %}
+                <div style="font-family:ui-monospace,monospace;font-size:13px;font-weight:600;">{{ prescription.presc_no }}</div>
+                <div style="margin:6px 0;">
+                    <span class="pill {% if prescription.status == 'DISPENSED' %}pill-green{% elif prescription.status == 'REJECTED' %}pill-red{% elif prescription.status == 'APPROVED' %}pill-green{% else %}pill-amber{% endif %}">
+                        {{ prescription.get_status_display }}
+                    </span>
+                </div>
+                <div style="font-size:12px;color:var(--ink-500);">{{ prescription.get_presc_type_display }} · {{ prescription.total_doses }} 剂</div>
+                <a class="btn btn-sm btn-outline-brand w-100 mt-2" href="{% url 'prescriptions:prescription_detail' prescription.pk %}">
+                    查看处方
+                </a>
+                {% else %}
+                <div class="empty" style="padding:14px 0;">
+                    <i class="bi bi-journal-x"></i>
+                    <div style="font-size:12.5px;">尚未开方</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="bi bi-person-lines-fill me-1"></i> 患者档案</div>
+            <div class="card-body" style="font-size:12.5px;color:var(--ink-500);">
+                <div style="padding:4px 0;">病案号：{{ patient.record_no|default:patient.patient_no }}</div>
+                <div style="padding:4px 0;">体质：{{ patient.get_constitution_display }}</div>
+                <div style="padding:4px 0;">最近就诊：{{ patient.last_visit_at|date:"Y-m-d"|default:"—" }}</div>
+                <a class="btn btn-sm btn-ghost w-100 mt-2" href="{% url 'patients:patient_detail' patient.pk %}">查看完整档案</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

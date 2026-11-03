@@ -30,6 +30,13 @@ from apps.users.models import Doctor, Permission, Pharmacist, Role, RolePermissi
 PERMISSIONS = [
     ("患者:读", "患者读取", "action"),
     ("患者:新增", "患者建档", "action"),
+    ("接诊:读", "查看诊室队列", "action"),
+    ("接诊:写", "接诊与书写病历", "action"),
+    ("病历:读", "查看电子病历", "action"),
+    ("病历申请:处理", "受理病案服务申请", "action"),
+    ("挂号:管理", "挂号与号源管理", "action"),
+    ("我的就诊:读", "查看本人就诊记录", "action"),
+    ("用户:审核", "审核注册资料", "action"),
     ("处方:新增", "新建处方", "action"),
     ("处方:修改", "修改处方", "action"),
     ("处方:提交", "提交处方", "action"),
@@ -52,19 +59,26 @@ PERMISSIONS = [
 
 # 角色权限分配
 ROLE_PERMISSIONS = {
-    "doctor": ["患者:读", "患者:新增", "处方:新增", "处方:修改", "处方:提交", "统计:读"],
-    "pharmacist": ["审核:读", "审核:领取", "审核:通过", "审核:退回", "统计:读"],
-    "pharmacist_lead": ["审核:读", "审核:领取", "审核:复审", "审核:退回", "统计:读"],
-    "cashier": ["收费:确认", "统计:读"],
+    "doctor": [
+        "患者:读", "患者:新增", "处方:新增", "处方:修改", "处方:提交", "统计:读",
+        "接诊:读", "接诊:写", "病历:读", "病历申请:处理",
+    ],
+    "pharmacist": ["审核:读", "审核:领取", "审核:通过", "审核:退回", "统计:读", "病历:读"],
+    "pharmacist_lead": ["审核:读", "审核:领取", "审核:复审", "审核:退回", "统计:读", "病历:读"],
+    "cashier": ["收费:确认", "统计:读", "挂号:管理"],
     "pharmacy": ["发药:确认", "药房:管理", "统计:读", "导出:执行"],
-    "medical_affairs": ["医务科:统计", "统计:读", "日志:读", "导出:执行"],
+    "medical_affairs": [
+        "医务科:统计", "统计:读", "日志:读", "导出:执行",
+        "接诊:读", "病历:读", "病历申请:处理", "用户:审核",
+    ],
     # 管理员负责系统维护与全局查看，不具备医师执业资格，因此不授予「处方:新增」
     "admin": [
         "用户:读", "患者:读", "统计:读", "日志:读", "导出:执行",
         "字典:维护", "审核:读", "发药:确认", "药房:管理", "收费:确认",
+        "接诊:读", "病历:读", "病历申请:处理", "挂号:管理", "用户:审核",
     ],
-    # 患者只保留「看自己的处方」，不再拥有全量统计权限
-    "patient": ["我的处方:读"],
+    # 患者只保留「看自己的就诊与处方」，不再拥有全量统计权限
+    "patient": ["我的处方:读", "我的就诊:读"],
 }
 
 # 医师演示账号的科室与职称
@@ -235,6 +249,7 @@ class Command(BaseCommand):
             self.create_suppliers_and_batches()
             self.create_demo_accounts()
             self.create_demo_patients()
+            self.create_demo_clinic()
         self.stdout.write(self.style.SUCCESS("初始化完成！"))
 
 
@@ -445,4 +460,210 @@ class Command(BaseCommand):
         )
         patient.user = user
         patient.save(update_fields=["user"])
+
+    # ------------------------------------------------------------------
+    # 门诊演示数据（挂号 / 电子病历 / 病案申请 / 待审核账号）
+    # ------------------------------------------------------------------
+    def create_demo_clinic(self):
+        """构造当天门诊现场，便于直接演示接诊-病历-开方-病案申请全流程。
+
+        使用固定单号并每次把日期刷新到"今天"，避免天天手动改日期才能演示。
+        """
+        from apps.clinic.models import MedicalRecord, MedicalRecordRequest, Registration
+        from apps.patients.models import Patient
+        from datetime import date as _date
+
+        today = timezone.localdate()
+        patients = {p.name: p for p in Patient.objects.filter(is_deleted=False)}
+        doctors = {
+            d.user.first_name: d
+            for d in Doctor.objects.select_related("user").all()
+            if d.user.first_name
+        }
+        if not patients or not doctors:
+            return
+
+        plan = [
+            ("张三", "陈志明", "WAITING", "上午 08:00-10:00", "胃脘胀痛反复 2 周，加重 3 天"),
+            ("林清和", "陈志明", "IN_PROGRESS", "上午 08:00-10:00", "气短乏力、动则汗出"),
+            ("苏念慈", "王玉晨", "FINISHED", "上午 10:00-12:00", "妊娠 16 周，口干咽燥、夜寐不安"),
+            ("顾长风", "李慕白", "WAITING", "下午 14:00-16:00", "胸闷痰多、形体困重"),
+            ("白露", "王玉晨", "FINISHED", "下午 14:00-16:00", "经前乳房胀痛、情志抑郁"),
+            ("郝思远", "苏文垣", "WAITING", "下午 16:00-18:00", "反复咳嗽 2 周，痰少"),
+        ]
+
+        created_regs = 0
+        for idx, (patient_name, doctor_name, status, slot, complaint) in enumerate(plan, start=1):
+            patient = patients.get(patient_name)
+            doctor = doctors.get(doctor_name)
+            if not patient or not doctor:
+                continue
+            reg, created = Registration.objects.get_or_create(
+                reg_no=f"DEMO-GH-{idx:02d}",
+                defaults={
+                    "patient": patient,
+                    "doctor": doctor,
+                    "visit_date": today,
+                    "time_slot": slot,
+                    "reg_type": "EXPERT" if idx % 3 == 0 else "NORMAL",
+                    "source": "WINDOW" if idx % 2 else "ONLINE",
+                    "fee": 50 if idx % 3 == 0 else 20,
+                    "pay_status": "PAID" if status == "FINISHED" else "UNPAID",
+                    "status": status,
+                    "queue_no": idx,
+                    "chief_complaint": complaint,
+                    "called_at": timezone.now() if status != "WAITING" else None,
+                    "finished_at": timezone.now() if status == "FINISHED" else None,
+                },
+            )
+            if not created:
+                # 让演示号源始终落在当天，避免跨天后工作台一片空白
+                changed = []
+                if reg.visit_date != today:
+                    reg.visit_date = today
+                    changed.append("visit_date")
+                if reg.status == "FINISHED" and not reg.finished_at:
+                    reg.finished_at = timezone.now()
+                    changed.append("finished_at")
+                if changed:
+                    reg.save(update_fields=changed)
+                continue
+            created_regs += 1
+
+        # 两条已完成的就诊补上已签发病历
+        records = [
+            {
+                "record_no": "DEMO-BL-01",
+                "reg_no": "DEMO-GH-03",
+                "chief_complaint": "妊娠 16 周，口干咽燥、夜寐不安 1 月",
+                "present_illness": "孕 16 周，近 1 月口干咽燥，夜间尤甚，睡眠浅易醒，无腹痛及阴道出血。",
+                "past_history": "孕 1 产 0，无药物过敏史。",
+                "allergy_history": "无",
+                "family_history": "否认家族遗传病史",
+                "inspection": "面色少华，舌红少津、苔薄白",
+                "auscultation": "语声低微，气息平和",
+                "inquiry": "口干欲饮，手足心热，夜寐不安，大便偏干",
+                "palpation": "脉细滑",
+                "temperature": 36.6, "pulse": 88, "respiration": 18, "blood_pressure": "112/70",
+                "tcm_diagnosis": "妊娠恶阻",
+                "syndrome": "气阴两虚证",
+                "western_diagnosis": "妊娠期口干症",
+                "treatment": "益气养阴、和胃安胎",
+                "advice": "忌辛辣温燥之品；少量多次饮水；一周后复诊，如腹痛或出血随时就诊。",
+            },
+            {
+                "record_no": "DEMO-BL-02",
+                "reg_no": "DEMO-GH-05",
+                "chief_complaint": "经前乳房胀痛 3 月，加重 1 周",
+                "present_illness": "近 3 月每于经前 1 周出现双乳胀痛，情绪波动时加重，经行后缓解。",
+                "past_history": "乳腺增生 2 年，定期复查。",
+                "allergy_history": "无",
+                "family_history": "母亲有乳腺增生病史",
+                "inspection": "舌质暗、苔薄白",
+                "auscultation": "语声正常",
+                "inquiry": "情志抑郁，胁肋胀痛，月经先后不定期，经色暗有块",
+                "palpation": "脉弦细",
+                "temperature": 36.5, "pulse": 76, "respiration": 17, "blood_pressure": "108/68",
+                "tcm_diagnosis": "乳癖",
+                "syndrome": "肝郁气滞证",
+                "western_diagnosis": "乳腺增生症",
+                "treatment": "疏肝理气、散结止痛",
+                "advice": "保持情志舒畅，忌熬夜；经前低盐饮食；3 个月复查乳腺超声。",
+            },
+        ]
+        created_records = 0
+        for item in records:
+            reg = Registration.objects.filter(reg_no=item["reg_no"]).first()
+            if not reg:
+                continue
+            payload = {k: v for k, v in item.items() if k not in ("record_no", "reg_no")}
+            record, created = MedicalRecord.objects.get_or_create(
+                record_no=item["record_no"],
+                defaults={
+                    "patient": reg.patient,
+                    "doctor": reg.doctor,
+                    "registration": reg,
+                    "status": "SIGNED",
+                    "signed_at": timezone.now(),
+                    **payload,
+                },
+            )
+            if created:
+                created_records += 1
+                reg.status = "FINISHED"
+                reg.finished_at = reg.finished_at or timezone.now()
+                reg.save(update_fields=["status", "finished_at"])
+
+        requests = [
+            {
+                "request_no": "DEMO-BA-01",
+                "patient_name": "张三",
+                "request_type": "COPY",
+                "purpose": "商业保险理赔，需要近半年门诊病历复印件",
+                "copies": 2,
+                "delivery": "PICKUP",
+                "status": "PENDING",
+                "applicant_name": "张三",
+                "relation": "SELF",
+                "phone": "13800000000",
+            },
+            {
+                "request_no": "DEMO-BA-02",
+                "patient_name": "顾长风",
+                "request_type": "DIAGNOSIS",
+                "purpose": "单位病假报销，开具诊断证明书",
+                "copies": 1,
+                "delivery": "PICKUP",
+                "status": "COMPLETED",
+                "applicant_name": "顾长风",
+                "relation": "SELF",
+                "phone": "13910000003",
+                "pickup_code": "825316",
+            },
+        ]
+        created_requests = 0
+        for item in requests:
+            patient = patients.get(item.pop("patient_name"))
+            if not patient:
+                continue
+            _, created = MedicalRecordRequest.objects.get_or_create(
+                request_no=item["request_no"],
+                defaults={
+                    "patient": patient,
+                    "accepted_at": timezone.now(),
+                    "completed_at": timezone.now() if item.get("status") == "COMPLETED" else None,
+                    **item,
+                },
+            )
+            if created:
+                created_requests += 1
+
+        # 一个待审核的医师注册申请，方便演示管理员审核流程
+        pending_user, created_pending = User.objects.get_or_create(
+            username="doctor6",
+            defaults={
+                "first_name": "赵清和",
+                "last_name": "",
+                "phone": "13910000099",
+                "email": "zhaoqh@example.com",
+                "gender": "M",
+                "birth_date": timezone.datetime(1985, 6, 12).date() if hasattr(timezone, "datetime") else None,
+                "apply_role": "doctor",
+                "apply_status": "PENDING",
+                "license_no": "141520000000456",
+                "department": "中医内科",
+                "title": "主治医师",
+                "institution": "贵州中医药大学时珍学院",
+                "practice_years": 9,
+                "education": "硕士",
+                "apply_note": "申请开通中医内科门诊医师账号，从事脾胃病方向。",
+            },
+        )
+        if created_pending:
+            pending_user.set_password("rx123456")
+            pending_user.save(update_fields=["password"])
+
+        self.stdout.write(self.style.SUCCESS(
+            f"门诊演示数据完成（挂号新增 {created_regs} 条、病历 {created_records} 份、病案申请 {created_requests} 条）"
+        ))
 

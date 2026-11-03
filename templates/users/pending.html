@@ -1,0 +1,85 @@
+{% load static %}<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>账号审核中 - TCM-RMS</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        min-height: 100vh; display: grid; place-items: center; padding: 24px;
+        background: radial-gradient(720px 380px at 80% 0%, #e7f1eb, transparent 70%), #f7f5f0;
+        font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; color: #1b211d;
+    }
+    .card {
+        width: 100%; max-width: 520px; background: #fffefb; border: 1px solid #e5e2d8;
+        border-radius: 18px; padding: 34px 32px; box-shadow: 0 24px 60px -34px rgba(15,61,46,.4);
+        text-align: center;
+    }
+    .logo { background: #fff; display: inline-block; padding: 4px 8px; border: 1px solid #e5e2d8; border-radius: 9px; }
+    .logo img { display: block; height: 30px; }
+    .ic {
+        width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
+        margin: 22px auto 14px; font-size: 27px;
+    }
+    .ic.pending { background: #fdf3e8; color: #c9772f; }
+    .ic.rejected { background: #fbeeec; color: #b3453c; }
+    h1 { font-size: 21px; margin-bottom: 8px; letter-spacing: -.2px; }
+    p { font-size: 13.5px; color: #6b7871; line-height: 1.85; }
+    .info {
+        text-align: left; background: #f2f8f4; border: 1px solid #dcebe2; border-radius: 12px;
+        padding: 14px 16px; margin: 20px 0; font-size: 13px; line-height: 2;
+    }
+    .info .row { display: flex; justify-content: space-between; gap: 12px; }
+    .info .k { color: #6b7871; }
+    .info .v { font-weight: 600; }
+    .note {
+        background: #fbeeec; border: 1px solid #f0d3ce; color: #8c3b2e; border-radius: 10px;
+        padding: 10px 13px; font-size: 12.5px; text-align: left; margin-bottom: 16px; line-height: 1.8;
+    }
+    .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+        display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 20px;
+        border-radius: 10px; font-size: 13.5px; font-weight: 600; text-decoration: none;
+        border: 1px solid #d3cfc2; color: #3d473f; background: #fff;
+    }
+    .btn.primary { background: #1a5f47; border-color: #1a5f47; color: #fff; }
+    .foot { font-size: 11.5px; color: #98a49c; margin-top: 22px; }
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="logo"><img src="{% static 'img/college-logo.jpg' %}" alt="贵州中医药大学时珍学院"></div>
+
+    {% if user.apply_status == 'REJECTED' %}
+    <div class="ic rejected"><i class="bi bi-x-circle"></i></div>
+    <h1>注册资料未通过审核</h1>
+    <p>您的账号暂时无法进入业务系统。请核对资质信息后联系医务科复核，或重新提交注册申请。</p>
+    {% else %}
+    <div class="ic pending"><i class="bi bi-hourglass-split"></i></div>
+    <h1>注册资料审核中</h1>
+    <p>您的注册信息已提交，医务科正在核验执业资质。审核通过后即可使用对应岗位功能。</p>
+    {% endif %}
+
+    <div class="info">
+        <div class="row"><span class="k">账号</span><span class="v">{{ user.username }}</span></div>
+        <div class="row"><span class="k">姓名</span><span class="v">{{ user.display_name }}</span></div>
+        <div class="row"><span class="k">申请身份</span><span class="v">{{ user.get_apply_role_display }}</span></div>
+        <div class="row"><span class="k">科室 / 职称</span><span class="v">{{ user.department|default:"—" }}{% if user.title %} · {{ user.title }}{% endif %}</span></div>
+        <div class="row"><span class="k">审核状态</span><span class="v">{{ user.get_apply_status_display }}</span></div>
+        <div class="row"><span class="k">提交时间</span><span class="v">{{ user.date_joined|date:"Y-m-d H:i" }}</span></div>
+    </div>
+
+    {% if user.review_note %}
+    <div class="note"><b>审核意见：</b>{{ user.review_note }}</div>
+    {% endif %}
+
+    <div class="actions">
+        <a class="btn primary" href="{% url 'users:logout' %}"><i class="bi bi-box-arrow-right"></i> 退出并重新登录</a>
+        <a class="btn" href="{% url 'users:profile' %}"><i class="bi bi-person-gear"></i> 个人中心</a>
+    </div>
+    <div class="foot">课程实训系统 · 如需加急审核请联系系统管理员</div>
+</div>
+</body>
+</html>

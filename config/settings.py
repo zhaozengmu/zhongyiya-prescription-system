@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     # 五大功能模块 App
     "apps.users",          # 用户与医师管理
     "apps.patients",       # 患者信息管理
+    "apps.clinic",         # 门诊接诊、电子病历与病案服务
     "apps.prescriptions",  # 处方开具管理
     "apps.reviews",        # 处方审核管理
     "apps.stats",          # 历史查询与统计

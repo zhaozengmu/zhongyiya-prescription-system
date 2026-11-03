@@ -7,13 +7,32 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{% static 'css/app.css' %}" rel="stylesheet">
     <link href="{% static 'css/auth.css' %}" rel="stylesheet">
+    <style>
+        .auth-logo { background: #fff; border-radius: 10px; padding: 4px 8px; display: inline-block; }
+        .auth-logo img { display: block; height: 34px; width: auto; }
+        .cap-row { display: flex; gap: 10px; align-items: stretch; }
+        .cap-row .input-wrap { flex: 1; }
+        .cap-img {
+            width: 126px; height: 44px; border: 1px solid var(--line-strong, #d3cfc2);
+            border-radius: 10px; cursor: pointer; background: #f2f8f4; object-fit: cover;
+        }
+        .cap-hint { font-size: 12px; color: var(--ink-300, #98a49c); margin-top: 4px; display: flex; gap: 5px; align-items: center; }
+        .auth-note {
+            margin-top: 16px; padding: 12px 14px; border-radius: 10px; background: #f6f8f6;
+            border: 1px dashed #dfe6e0; font-size: 12.5px; color: #6b7871; line-height: 1.8;
+        }
+        .auth-note b { color: #1a5f47; }
+        @media (max-width: 480px) {
+            .cap-img { width: 108px; }
+        }
+    </style>
 </head>
 <body class="auth-body">
 <div class="auth-shell">
 
     <aside class="auth-aside">
         <div class="auth-brand">
-            <span class="mark"><i class="bi bi-flower2"></i></span>
+            <span class="auth-logo"><img src="{% static 'img/college-logo.jpg' %}" alt="贵州中医药大学时珍学院"></span>
             <span>
                 <b>TCM-RMS</b>
                 <small>中医处方开具与审核管理系统</small>
@@ -21,13 +40,13 @@
         </div>
 
         <div class="auth-pitch">
-            <h2>规则化预审<br>加药师双级复核</h2>
-            <p>十八反、十九畏、妊娠禁忌、毒性剂量六类规则实时校验，初审与复审分岗留痕。</p>
+            <h2>从接诊到发药<br>一条完整的安全链</h2>
+            <p>预约挂号、电子病历、结构化开方、规则预审与药师双级复核，全部在一个系统里闭环。</p>
             <ul class="auth-points">
-                <li><i class="bi bi-check2"></i> 结构化开方，模板一键引用</li>
-                <li><i class="bi bi-check2"></i> 处方全流程状态机管控</li>
-                <li><i class="bi bi-check2"></i> 敏感信息加密与掩码展示</li>
-                <li><i class="bi bi-check2"></i> 操作全量留痕可追溯</li>
+                <li><i class="bi bi-check2"></i> 中医四诊病历与处方一一关联</li>
+                <li><i class="bi bi-check2"></i> 十八反、十九畏等六类规则实时校验</li>
+                <li><i class="bi bi-check2"></i> 初审 / 复审分岗留痕可追溯</li>
+                <li><i class="bi bi-check2"></i> 患者可自助预约与申请病案材料</li>
             </ul>
         </div>
 
@@ -48,13 +67,14 @@
                 {% endfor %}
             {% endif %}
 
-            <form method="post" class="auth-form">
+            <form method="post" class="auth-form" autocomplete="off">
                 {% csrf_token %}
                 <label class="auth-field">
                     <span>账号</span>
                     <span class="input-wrap">
                         <i class="bi bi-person"></i>
-                        <input type="text" name="username" placeholder="请输入账号" autocomplete="username" required autofocus>
+                        <input type="text" name="username" value="{{ username|default:'' }}"
+                               placeholder="请输入账号" autocomplete="username" required autofocus>
                     </span>
                 </label>
 
@@ -62,12 +82,26 @@
                     <span>密码</span>
                     <span class="input-wrap">
                         <i class="bi bi-lock"></i>
-                        <input type="password" name="password" id="pwd" placeholder="请输入密码" autocomplete="current-password" required>
+                        <input type="password" name="password" id="pwd" placeholder="请输入密码"
+                               autocomplete="current-password" required>
                         <button type="button" class="pwd-toggle" id="pwdToggle" aria-label="显示密码">
                             <i class="bi bi-eye"></i>
                         </button>
                     </span>
                 </label>
+
+                <div class="auth-field">
+                    <span>验证码</span>
+                    <div class="cap-row">
+                        <span class="input-wrap">
+                            <i class="bi bi-shield-lock"></i>
+                            <input type="text" name="captcha" id="captcha" placeholder="输入右侧字符"
+                                   maxlength="6" autocomplete="off" required>
+                        </span>
+                        <img class="cap-img" id="captchaImg" alt="点击刷新验证码" title="看不清？点击刷新">
+                    </div>
+                    <div class="cap-hint"><i class="bi bi-info-circle"></i> 不区分大小写，点击图片可刷新</div>
+                </div>
 
                 <button type="submit" class="btn-brand auth-submit">登 录</button>
             </form>
@@ -76,30 +110,33 @@
                 还没有账号？<a href="{% url 'users:register' %}">注册新账号</a>
             </div>
 
-            <div class="auth-demo">
-                <div class="auth-demo-title">演示账号（密码均为 rx123456）</div>
-                <div class="auth-demo-grid">
-                    <span><b>管理员</b> admin1</span>
-                    <span><b>医师</b> doctor1</span>
-                    <span><b>药师</b> pharmacist1</span>
-                    <span><b>复审</b> pharmacist2</span>
-                    <span><b>收费</b> cashier1</span>
-                    <span><b>药房</b> pharmacy1</span>
-                    <span><b>患者</b> patient1</span>
-                </div>
+            <div class="auth-note">
+                <b>账号说明</b><br>
+                患者可自助注册并立即使用；医师、药师、收费与药房岗位注册后需经医务科
+                <b>审核资质</b>方可登录。忘记密码请联系系统管理员重置。
             </div>
         </div>
     </main>
 </div>
 
 <script>
-    document.getElementById('pwdToggle').addEventListener('click', function () {
-        const input = document.getElementById('pwd');
-        const icon = this.querySelector('i');
-        const show = input.type === 'password';
-        input.type = show ? 'text' : 'password';
-        icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
-    });
+    (function () {
+        const img = document.getElementById('captchaImg');
+        const base = "{% url 'users:captcha' %}";
+        function refresh() {
+            img.src = base + '?t=' + Date.now();
+        }
+        img.addEventListener('click', refresh);
+        refresh();
+
+        const pwd = document.getElementById('pwd');
+        const toggle = document.getElementById('pwdToggle');
+        toggle.addEventListener('click', function () {
+            const show = pwd.type === 'password';
+            pwd.type = show ? 'text' : 'password';
+            this.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
+    })();
 </script>
 </body>
 </html>

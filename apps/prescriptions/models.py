@@ -256,9 +256,14 @@ class Prescription(models.Model):
 
     @staticmethod
     def generate_presc_no():
-        """按日期+流水生成处方号。"""
+        """按日期+流水生成处方号。
+
+        注意前缀与 ``create_with_generated_no`` 的查重口径必须一致：
+        处方号是 ``P + yyyymmdd + 4 位流水``，若只按日期查重会永远取不到
+        当天已有记录，导致流水一直从 1 开始并撞唯一约束。
+        """
         now = timezone.now()
-        prefix = now.strftime("%Y%m%d")
+        prefix = "P" + now.strftime("%Y%m%d")
         last = (
             Prescription.objects.filter(presc_no__startswith=prefix)
             .order_by("-presc_no")
@@ -270,7 +275,7 @@ class Prescription(models.Model):
                 seq = int(last.presc_no[-4:]) + 1
             except (ValueError, IndexError):
                 seq = 1
-        return f"P{prefix}{seq:04d}"
+        return f"{prefix}{seq:04d}"
 
     @classmethod
     def create_with_generated_no(cls, max_retries=5, **kwargs):

@@ -99,6 +99,8 @@ def dashboard(request):
     today = timezone.now().date()
     labels = dict(Prescription.STATUS_CHOICES)
 
+    from apps.clinic.views import clinic_snapshot
+
     near_expiry = HerbBatch.objects.filter(
         expire_at__lte=today + timedelta(days=90), expire_at__gte=today
     ).select_related("herb", "supplier")[:10]
@@ -106,6 +108,7 @@ def dashboard(request):
 
     context = {
         **metrics,
+        "clinic": clinic_snapshot(),
         "near_expiry": near_expiry,
         "stock_shortage": stock_shortage,
         "status_flow": [

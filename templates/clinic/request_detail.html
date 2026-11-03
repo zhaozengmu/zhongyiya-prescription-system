@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}申请 {{ req.request_no }} - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block crumb %}<a href="{% url 'clinic:request_list' %}">病案服务</a> / <b>{{ req.request_no }}</b>{% endblock %}
+{% block page_name %}病案申请{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ req.get_request_type_display }}</h1>
+        <p class="sub">{{ req.request_no }} · 提交于 {{ req.created_at|date:"Y-m-d H:i" }}</p>
+    </div>
+    <div class="page-actions">
+        <span class="pill {{ req.status_tone }}" style="height:28px;font-size:12.5px;">{{ req.get_status_display }}</span>
+        <a class="btn btn-sm btn-ghost" href="{% url 'clinic:request_list' %}"><i class="bi bi-arrow-left"></i> 返回</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-file-earmark-text me-1"></i> 申请信息</div>
+            <div class="card-body">
+                <div class="row g-3" style="font-size:13.5px;">
+                    <div class="col-md-6"><span style="color:var(--ink-500);">患者</span><div style="font-weight:600;">{{ req.patient.name }} · {{ req.patient.patient_no }}</div></div>
+                    <div class="col-md-6"><span style="color:var(--ink-500);">申请人</span><div style="font-weight:600;">{{ req.applicant_name }}（{{ req.get_relation_display }}）</div></div>
+                    <div class="col-md-6"><span style="color:var(--ink-500);">联系电话</span><div>{{ req.phone }}</div></div>
+                    <div class="col-md-6"><span style="color:var(--ink-500);">证件后四位</span><div>{{ req.id_card_last4|default:"未填写" }}</div></div>
+                    <div class="col-md-6"><span style="color:var(--ink-500);">申请份数</span><div>{{ req.copies }} 份</div></div>
+                    <div class="col-md-6"><span style="color:var(--ink-500);">取件方式</span><div>{{ req.get_delivery_display }}</div></div>
+                    {% if req.address %}<div class="col-12"><span style="color:var(--ink-500);">收件地址</span><div>{{ req.address }}</div></div>{% endif %}
+                    <div class="col-12"><span style="color:var(--ink-500);">用途说明</span>
+                        <div style="margin-top:3px;padding:10px 12px;background:var(--brand-50);border-radius:8px;">{{ req.purpose }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if req.status == 'COMPLETED' and req.pickup_code %}
+        <div class="card mb-3" style="border-color:#bfe8d0;background:#f6fcf8;">
+            <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+                <i class="bi bi-qr-code" style="font-size:30px;color:var(--ok);"></i>
+                <div>
+                    <div style="font-size:12.5px;color:var(--ink-500);">取件码（到病案窗口出示）</div>
+                    <div style="font-size:28px;font-weight:700;letter-spacing:6px;color:var(--brand-800);font-variant-numeric:tabular-nums;">
+                        {{ req.pickup_code }}
+                    </div>
+                </div>
+                <div class="ms-auto" style="font-size:12.5px;color:var(--ink-500);">
+                    完成时间：{{ req.completed_at|date:"Y-m-d H:i" }}<br>
+                    受理人：{{ req.handler.display_name|default:"病案室" }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header"><i class="bi bi-clock-history me-1"></i> 办理进度</div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="tl-item">
+                        <div class="t">{{ req.created_at|date:"Y-m-d H:i" }}</div>
+                        <div class="h">申请已提交</div>
+                        <div class="d">{{ req.applicant_name }} 发起{{ req.get_request_type_display }}申请</div>
+                    </div>
+                    {% if req.accepted_at %}
+                    <div class="tl-item">
+                        <div class="t">{{ req.accepted_at|date:"Y-m-d H:i" }}</div>
+                        <div class="h">病案室已受理</div>
+                        <div class="d">{{ req.handler.display_name|default:"病案室" }} 受理{% if req.handle_note %}：{{ req.handle_note }}{% endif %}</div>
+                    </div>
+                    {% endif %}
+                    {% if req.status == 'COMPLETED' %}
+                    <div class="tl-item">
+                        <div class="t">{{ req.completed_at|date:"Y-m-d H:i" }}</div>
+                        <div class="h">办理完成</div>
+                        <div class="d">材料已备齐，取件码 {{ req.pickup_code }}</div>
+                    </div>
+                    {% elif req.status == 'REJECTED' %}
+                    <div class="tl-item">
+                        <div class="t">{{ req.completed_at|date:"Y-m-d H:i"|default:"—" }}</div>
+                        <div class="h">申请已驳回</div>
+                        <div class="d">{{ req.handle_note|default:"材料不齐或不符合受理条件" }}</div>
+                    </div>
+                    {% else %}
+                    <div class="tl-item">
+                        <div class="t">待处理</div>
+                        <div class="h">等待病案室受理</div>
+                        <div class="d">一般 1~2 个工作日内完成</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {% if can_handle %}
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-tools me-1"></i> 受理操作</div>
+            <div class="card-body">
+                <form method="post" action="{% url 'clinic:request_handle' req.pk %}">
+                    {% csrf_token %}
+                    <label class="form-label" for="note">受理意见</label>
+                    <textarea class="form-control mb-3" id="note" name="handle_note" rows="3"
+                              placeholder="如：材料已复印完成，请携带身份证领取">{{ req.handle_note }}</textarea>
+                    <div class="d-grid gap-2">
+                        {% if req.status == 'PENDING' %}
+                        <button class="btn btn-outline-brand" type="submit" name="action" value="accept">
+                            <i class="bi bi-check2"></i> 受理申请
+                        </button>
+                        {% endif %}
+                        {% if req.status == 'PENDING' or req.status == 'ACCEPTED' %}
+                        <button class="btn btn-brand" type="submit" name="action" value="complete">
+                            <i class="bi bi-check2-all"></i> 完成并生成取件码
+                        </button>
+                        <button class="btn btn-ghost" type="submit" name="action" value="reject"
+                                onclick="return confirm('确认驳回该申请？');">
+                            <i class="bi bi-x-circle"></i> 驳回
+                        </button>
+                        {% endif %}
+                        {% if req.status == 'COMPLETED' or req.status == 'REJECTED' %}
+                        <div class="empty" style="padding:10px 0;"><i class="bi bi-check2-circle"></i><div>该申请已办结</div></div>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header"><i class="bi bi-person-lines-fill me-1"></i> 患者信息</div>
+            <div class="card-body" style="font-size:13px;">
+                <div style="font-weight:600;font-size:15px;">{{ req.patient.name }}</div>
+                <div style="color:var(--ink-500);">{{ req.patient.get_gender_display }} · {{ req.patient.age|default:"—" }} 岁</div>
+                <div style="color:var(--ink-500);margin-top:6px;">病案号：{{ req.patient.record_no|default:req.patient.patient_no }}</div>
+                <a class="btn btn-sm btn-ghost w-100 mt-2" href="{% url 'patients:patient_detail' req.patient.pk %}">查看患者档案</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

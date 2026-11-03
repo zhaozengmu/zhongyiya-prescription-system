@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}注册审核 - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block page_name %}注册审核{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>注册资料审核</h1>
+        <p class="sub">医师、药师、收费与药房岗位须核验资质后开通；通过即分配角色并建立执业档案</p>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="metric is-warn"><div class="label"><i class="bi bi-hourglass-split"></i> 待审核</div><div class="value">{{ counts.PENDING }}</div><div class="foot">需人工核验资质</div></div>
+    <div class="metric is-ok"><div class="label"><i class="bi bi-check2-circle"></i> 已通过</div><div class="value">{{ counts.APPROVED }}</div></div>
+    <div class="metric is-danger"><div class="label"><i class="bi bi-x-circle"></i> 已驳回</div><div class="value">{{ counts.REJECTED }}</div></div>
+</div>
+
+<form class="filter-bar" method="get">
+    <div class="row g-2 align-items-end">
+        <div class="col-6 col-md-2">
+            <label class="form-label">审核状态</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>待审核</option>
+                <option value="APPROVED" {% if status == 'APPROVED' %}selected{% endif %}>已通过</option>
+                <option value="REJECTED" {% if status == 'REJECTED' %}selected{% endif %}>已驳回</option>
+                <option value="" {% if status == '' %}selected{% endif %}>全部</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label">申请身份</label>
+            <select name="role" class="form-select form-select-sm">
+                <option value="">全部身份</option>
+                {% for code, label in role_choices %}
+                <option value="{{ code }}" {% if role_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-8 col-md-3">
+            <label class="form-label">账号 / 姓名 / 手机</label>
+            <input type="text" name="q" class="form-control form-control-sm" value="{{ keyword }}" placeholder="输入关键字">
+        </div>
+        <div class="col-4 col-md-2">
+            <button class="btn btn-sm btn-outline-brand w-100" type="submit"><i class="bi bi-search"></i> 查询</button>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>账号 / 姓名</th>
+                    <th>申请身份</th>
+                    <th>科室 / 职称</th>
+                    <th>执业证号</th>
+                    <th>联系电话</th>
+                    <th>注册时间</th>
+                    <th>状态</th>
+                    <th style="width:88px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in applications %}
+                <tr>
+                    <td>
+                        <div style="font-weight:600;">{{ u.display_name }}</div>
+                        <div style="font-size:11.5px;color:var(--ink-300);font-family:ui-monospace,monospace;">{{ u.username }}</div>
+                    </td>
+                    <td>
+                        <span class="pill {% if u.apply_role == 'patient' %}pill-gray{% else %}pill-blue{% endif %}">
+                            {{ u.get_apply_role_display }}
+                        </span>
+                    </td>
+                    <td style="font-size:12.5px;">{{ u.department|default:"—" }}<div style="font-size:11.5px;color:var(--ink-300);">{{ u.title|default:"" }}</div></td>
+                    <td style="font-size:12px;font-family:ui-monospace,monospace;">{{ u.license_no|default:"—" }}</td>
+                    <td style="font-size:12.5px;">{{ u.phone|default:"—" }}</td>
+                    <td style="font-size:12px;color:var(--ink-500);">{{ u.date_joined|date:"m-d H:i" }}</td>
+                    <td>
+                        {% if u.apply_status == 'PENDING' %}<span class="pill pill-amber">待审核</span>
+                        {% elif u.apply_status == 'APPROVED' %}<span class="pill pill-green">已通过</span>
+                        {% elif u.apply_status == 'REJECTED' %}<span class="pill pill-red">已驳回</span>
+                        {% else %}<span class="pill pill-gray">无需审核</span>{% endif %}
+                    </td>
+                    <td style="position:relative;">
+                        <details>
+                            <summary class="btn-xs" style="list-style:none;">审核</summary>
+                            <div style="position:absolute;right:12px;top:100%;z-index:20;width:330px;background:#fff;
+                                        border:1px solid var(--line);border-radius:12px;padding:14px;
+                                        box-shadow:0 18px 40px -20px rgba(15,61,46,.4);margin-top:6px;text-align:left;">
+                                <div style="font-size:12.5px;color:var(--ink-500);line-height:1.9;">
+                                    <div>姓名：{{ u.display_name }}（{{ u.get_gender_display }}）</div>
+                                    <div>出生日期：{{ u.birth_date|date:"Y-m-d"|default:"—" }} · 年龄 {{ u.age|default:"—" }}</div>
+                                    <div>单位/院校：{{ u.institution|default:"—" }}</div>
+                                    <div>学历：{{ u.education|default:"—" }} · 从业 {{ u.practice_years|default:"—" }} 年</div>
+                                    <div>申请说明：{{ u.apply_note|default:"—" }}</div>
+                                    {% if u.review_note %}<div>上次意见：{{ u.review_note }}</div>{% endif %}
+                                </div>
+                                <form method="post" action="{% url 'users:application_review' u.pk %}" style="margin-top:10px;">
+                                    {% csrf_token %}
+                                    <textarea name="review_note" class="form-control form-control-sm mb-2" rows="2"
+                                              placeholder="审核意见（驳回时建议填写原因）"></textarea>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-brand flex-fill" type="submit" name="action" value="approve">
+                                            通过
+                                        </button>
+                                        <button class="btn btn-sm btn-ghost flex-fill" type="submit" name="action" value="reject"
+                                                onclick="return confirm('确认驳回该注册申请？');">
+                                            驳回
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </details>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8"><div class="empty"><i class="bi bi-person-check"></i><div>没有符合条件的注册申请</div></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

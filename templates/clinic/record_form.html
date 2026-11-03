@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if mode == 'create' %}书写病历{% else %}编辑病历{% endif %} - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block crumb %}
+<a href="{% url 'clinic:workbench' %}">诊室工作台</a> /
+<b>{% if mode == 'create' %}书写病历{% else %}编辑病历{% endif %}</b>
+{% endblock %}
+{% block page_name %}电子病历{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{% if mode == 'create' %}书写电子病历{% else %}编辑电子病历{% endif %}</h1>
+        <p class="sub">
+            {% if reg %}本次就诊：{{ reg.reg_no }} · {{ reg.visit_date|date:"Y-m-d" }} · 第 {{ reg.queue_no }} 号{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-sm btn-ghost" href="{% url 'clinic:workbench' %}"><i class="bi bi-arrow-left"></i> 返回工作台</a>
+    </div>
+</div>
+
+<div class="info-strip">
+    <span class="who">{{ patient.name }}</span>
+    <span>{{ patient.get_gender_display }} · {{ patient.age|default:"—" }} 岁</span>
+    <span class="sep"></span>
+    <span>病案号：{{ patient.record_no|default:patient.patient_no }}</span>
+    <span class="sep"></span>
+    <span>体质：{{ patient.get_constitution_display }}</span>
+    <span class="sep"></span>
+    <span class="{% if patient.allergy_history %}danger-text{% endif %}">
+        <i class="bi bi-exclamation-triangle"></i> 过敏史：{{ patient.allergy_history|default:"未记录" }}
+    </span>
+</div>
+
+<form method="post" class="row g-3" id="recordForm">
+    {% csrf_token %}
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="form-sect-title"><i class="bi bi-chat-square-text"></i> 主诉与病史</div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label" for="chief">主诉 <span style="color:#c0392b">*</span></label>
+                        <textarea class="form-control" id="chief" name="chief_complaint" rows="2" maxlength="200" required
+                                  placeholder="主要症状 + 持续时间，如：反复胃脘胀痛 2 周，加重 3 天">{{ record.chief_complaint|default:'' }}</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="present">现病史</label>
+                        <textarea class="form-control" id="present" name="present_illness" rows="4"
+                                  placeholder="起病诱因、症状演变、诊疗经过">{{ record.present_illness|default:'' }}</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="past">既往史</label>
+                        <textarea class="form-control" id="past" name="past_history" rows="4"
+                                  placeholder="慢性病、手术史、用药史">{{ record.past_history|default:'' }}</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="allergy">过敏史</label>
+                        <input type="text" class="form-control" id="allergy" name="allergy_history" maxlength="200"
+                               value="{{ record.allergy_history|default:'' }}" placeholder="药物 / 食物过敏">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="family">家族史</label>
+                        <input type="text" class="form-control" id="family" name="family_history" maxlength="200"
+                               value="{{ record.family_history|default:'' }}" placeholder="直系亲属重大疾病史">
+                    </div>
+                </div>
+
+                <div class="form-sect-title mt-4"><i class="bi bi-eye"></i> 中医四诊</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="inspection">望诊</label>
+                        <input type="text" class="form-control" id="inspection" name="inspection" maxlength="200"
+                               value="{{ record.inspection|default:'' }}" placeholder="面色、舌象，如：舌淡苔白">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="auscultation">闻诊</label>
+                        <input type="text" class="form-control" id="auscultation" name="auscultation" maxlength="200"
+                               value="{{ record.auscultation|default:'' }}" placeholder="语声、气息、气味">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="inquiry">问诊</label>
+                        <input type="text" class="form-control" id="inquiry" name="inquiry" maxlength="200"
+                               value="{{ record.inquiry|default:'' }}" placeholder="寒热、汗、饮食、二便、睡眠">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="palpation">切诊（脉象）</label>
+                        <input type="text" class="form-control" id="palpation" name="palpation" maxlength="200"
+                               value="{{ record.palpation|default:'' }}" placeholder="如：脉细弱">
+                    </div>
+                </div>
+
+                <div class="form-sect-title mt-4"><i class="bi bi-activity"></i> 生命体征</div>
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="temperature">体温(℃)</label>
+                        <input type="number" step="0.1" min="30" max="45" class="form-control" id="temperature"
+                               name="temperature" value="{{ record.temperature|default_if_none:'' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="pulse">脉搏(次/分)</label>
+                        <input type="number" min="0" max="250" class="form-control" id="pulse" name="pulse"
+                               value="{{ record.pulse|default_if_none:'' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="respiration">呼吸(次/分)</label>
+                        <input type="number" min="0" max="120" class="form-control" id="respiration" name="respiration"
+                               value="{{ record.respiration|default_if_none:'' }}">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="bp">血压(mmHg)</label>
+                        <input type="text" class="form-control" id="bp" name="blood_pressure" maxlength="20"
+                               value="{{ record.blood_pressure|default:'' }}" placeholder="120/80">
+                    </div>
+                </div>
+
+                <div class="form-sect-title mt-4"><i class="bi bi-clipboard2-pulse"></i> 诊断与治法</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="tcm">中医诊断</label>
+                        <input type="text" class="form-control" id="tcm" name="tcm_diagnosis" maxlength="200"
+                               value="{{ record.tcm_diagnosis|default:'' }}" placeholder="如：胃脘痛">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="syndrome">中医证型</label>
+                        <input type="text" class="form-control" id="syndrome" name="syndrome" maxlength="200"
+                               value="{{ record.syndrome|default:'' }}" placeholder="如：脾胃虚寒证">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="western">西医诊断</label>
+                        <input type="text" class="form-control" id="western" name="western_diagnosis" maxlength="200"
+                               value="{{ record.western_diagnosis|default:'' }}" placeholder="如：慢性胃炎">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="treatment">治法</label>
+                        <input type="text" class="form-control" id="treatment" name="treatment" maxlength="200"
+                               value="{{ record.treatment|default:'' }}" placeholder="如：温中健脾、和胃止痛">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="advice">医嘱与调护</label>
+                        <textarea class="form-control" id="advice" name="advice" rows="3"
+                                  placeholder="饮食起居、复诊安排、注意事项">{{ record.advice|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <button type="submit" name="action" value="draft" class="btn btn-outline-brand">
+                <i class="bi bi-save"></i> 保存草稿
+            </button>
+            <button type="submit" name="action" value="sign" class="btn btn-brand"
+                    onclick="return confirm('签发后病历不可修改，确认签发？');">
+                <i class="bi bi-patch-check"></i> 签发病历并结束就诊
+            </button>
+            <a class="btn btn-ghost" href="{% url 'clinic:workbench' %}">放弃</a>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-person-vcard me-1"></i> 患者健康背景</div>
+            <div class="card-body" style="font-size:13px;">
+                <div class="kv" style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="color:var(--ink-500);">既往病史</span>
+                    <span style="max-width:60%;text-align:right;">{{ patient.medical_history|default:"未记录" }}</span>
+                </div>
+                <div class="kv" style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="color:var(--ink-500);">过敏史</span>
+                    <span style="max-width:60%;text-align:right;{% if patient.allergy_history %}color:var(--danger);font-weight:600;{% endif %}">
+                        {{ patient.allergy_history|default:"未记录" }}
+                    </span>
+                </div>
+                <div class="kv" style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="color:var(--ink-500);">孕产状态</span>
+                    <span>{{ patient.get_pregnancy_status_display }}</span>
+                </div>
+                <div class="kv" style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="color:var(--ink-500);">最近就诊</span>
+                    <span>{{ patient.last_visit_at|date:"Y-m-d"|default:"首次就诊" }}</span>
+                </div>
+                <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);color:var(--ink-500);font-size:12px;">
+                    上次就诊摘要：{{ patient.visit_summary|default:"—" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body" style="font-size:12.5px;color:var(--ink-500);line-height:1.9;">
+                <div class="form-sect-title" style="margin-bottom:10px;"><i class="bi bi-lightbulb"></i> 书写提示</div>
+                <div>· 主诉必填，签发后病历锁定不可改</div>
+                <div>· 过敏史与孕产状态会参与开方安全校验</div>
+                <div>· 签发后可在病历详情页直接开方</div>
+                <div>· 病历与处方一一关联，便于质控追溯</div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

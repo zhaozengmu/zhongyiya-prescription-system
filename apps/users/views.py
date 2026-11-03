@@ -1,20 +1,44 @@
 """用户登录、注册、退出与医师管理视图。"""
 import json
 import logging
+import re
+from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from apps.users import services
-from apps.users.models import Doctor, Role, User, UserRole
+from apps.users import captcha, services
+from apps.users.models import (
+    APPLY_ROLE_CHOICES,
+    APPLY_STATUS_CHOICES,
+    Doctor,
+    Pharmacist,
+    Role,
+    User,
+    UserRole,
+)
 from apps.users.permissions import deny, get_client_ip, get_user_permissions, has_permission
+from apps.utils.crypto import encrypt, hash_value
 
 logger = logging.getLogger(__name__)
+
+# 申请身份 -> 审核通过后授予的角色编码
+APPLY_ROLE_TO_ROLE = {
+    "doctor": "doctor",
+    "pharmacist": "pharmacist",
+    "cashier": "cashier",
+    "pharmacy": "pharmacy",
+    "patient": "patient",
+}
+
+ROLE_LABEL = dict(APPLY_ROLE_CHOICES)
 
 
 def _log(request, action_type, object_type, object_id, detail, result="success", operator=None):
@@ -31,16 +55,36 @@ def _log(request, action_type, object_type, object_id, detail, result="success",
     )
 
 
+def landing(request):
+    """门户封面页：未登录展示，已登录按角色进入工作台。"""
+    if request.user.is_authenticated:
+        return redirect(reverse(services.resolve_landing_url_name(request.user)))
+    return render(request, "landing.html")
+
+
+def captcha_view(request):
+    """图形验证码图片端点。"""
+    return captcha.captcha_image(request)
+
+
 def login_view(request):
-    """账号密码登录，带登录失败锁定。"""
+    """账号密码登录，带图形验证码与失败锁定。"""
+    if request.user.is_authenticated:
+        return redirect(reverse(services.resolve_landing_url_name(request.user)))
+
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
 
+        # 验证码先校验：不然可以拿登录接口无限撞库
+        if not captcha.verify(request, request.POST.get("captcha", "")):
+            messages.error(request, "验证码不正确或已过期，请重新输入")
+            return render(request, "users/login.html", {"username": username})
+
         user = services.find_user(username)
         if services.is_locked(user):
             messages.error(request, f"账号已锁定，请 {services.lock_remaining_minutes(user)} 分钟后重试")
-            return render(request, "users/login.html")
+            return render(request, "users/login.html", {"username": username})
 
         auth_user = authenticate(request, username=user.username if user else username, password=password)
         if auth_user is None:
@@ -48,7 +92,11 @@ def login_view(request):
                 messages.error(request, "连续失败次数过多，账号已锁定 10 分钟")
             else:
                 messages.error(request, "用户名或密码错误")
-            return render(request, "users/login.html")
+            return render(request, "users/login.html", {"username": username})
+
+        if auth_user.apply_status == "REJECTED":
+            messages.error(request, "该账号的注册资料已被驳回，请联系医务科复核")
+            return render(request, "users/login.html", {"username": username})
 
         services.reset_failures(user)
         login(request, auth_user)
@@ -58,54 +106,257 @@ def login_view(request):
     return render(request, "users/login.html")
 
 
+def _parse_birth(raw):
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
 def register_view(request):
-    """注册新账号（默认分配"患者"角色）。
+    """注册新账号，采集完整注册者信息。
 
-    医师、药师角色因涉及法定资质绑定，须由管理员在后台分配，
-    公开注册仅开放患者角色，符合权限设计的最小权限原则。
+    - 患者：注册即建档可用（自动生成病案号并绑定患者档案）；
+    - 医师/药师/收费/药房：提交资质信息后进入「待审核」，由管理员审核
+      通过才分配角色并建立执业档案，对应医疗机构岗位准入要求。
     """
-    if request.method == "POST":
-        username = request.POST.get("username", "").strip()
-        full_name = request.POST.get("full_name", "").strip()
-        phone = request.POST.get("phone", "").strip()
-        password = request.POST.get("password", "")
-        password2 = request.POST.get("password2", "")
+    if request.user.is_authenticated:
+        return redirect(reverse(services.resolve_landing_url_name(request.user)))
 
-        if not username:
-            messages.error(request, "请输入用户名")
-            return render(request, "users/register.html")
-        if not full_name:
-            messages.error(request, "请输入姓名")
-            return render(request, "users/register.html")
-        if User.objects.filter(username__iexact=username).exists():
-            messages.error(request, "该用户名已被注册，请更换")
-            return render(request, "users/register.html")
-        if len(password) < 8:
-            messages.error(request, "密码长度不能少于 8 位")
-            return render(request, "users/register.html")
-        if password != password2:
-            messages.error(request, "两次输入的密码不一致")
-            return render(request, "users/register.html")
+    from apps.patients.models import Patient
 
-        user = User.objects.create_user(
-            username=username,
-            password=password,
-            first_name=full_name,
-            phone=phone,
+    context = {
+        "form": {},
+        "role_choices": APPLY_ROLE_CHOICES,
+        "constitution_choices": Patient.CONSTITUTION_CHOICES,
+        "pregnancy_choices": Patient.PREGNANCY_CHOICES,
+    }
+
+    if request.method != "POST":
+        return render(request, "users/register.html", context)
+
+    post = request.POST
+    form = {key: post.get(key, "") for key in post.keys()}
+    context["form"] = form
+
+    username = post.get("username", "").strip()
+    full_name = post.get("full_name", "").strip()
+    password = post.get("password", "")
+    password2 = post.get("password2", "")
+    phone = post.get("phone", "").strip()
+    email = post.get("email", "").strip()
+    gender = post.get("gender", "U")
+    apply_role = post.get("apply_role", "patient")
+    id_card = post.get("id_card", "").strip().upper()
+
+    if apply_role not in dict(APPLY_ROLE_CHOICES):
+        apply_role = "patient"
+    context["selected_role"] = apply_role
+
+    def fail(message):
+        messages.error(request, message)
+        return render(request, "users/register.html", context)
+
+    if not captcha.verify(request, post.get("captcha", "")):
+        return fail("验证码不正确或已过期，请重新输入")
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{2,19}", username):
+        return fail("用户名需以字母开头，3~20 位字母、数字或下划线")
+    if User.objects.filter(username__iexact=username).exists():
+        return fail("该用户名已被注册，请更换")
+    if not full_name or len(full_name) > 32:
+        return fail("请填写真实姓名（不超过 32 个字符）")
+    if gender not in ("M", "F", "U"):
+        return fail("请选择性别")
+    if not re.fullmatch(r"1[3-9]\d{9}", phone):
+        return fail("请输入正确的 11 位手机号")
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[A-Za-z]{2,}", email):
+        return fail("邮箱格式不正确")
+    if len(password) < 8:
+        return fail("密码长度不能少于 8 位")
+    if password != password2:
+        return fail("两次输入的密码不一致")
+    if id_card and not re.fullmatch(r"\d{17}[\dX]", id_card):
+        return fail("身份证号应为 18 位（末位可为 X）")
+    if id_card and User.objects.filter(id_card_hash=hash_value(id_card)).exists():
+        return fail("该身份证号已注册过账号")
+    if id_card and Patient.objects.filter(id_card_hash=hash_value(id_card), is_deleted=False).exists():
+        return fail("该身份证号已有院内病案，请到窗口办理账号绑定")
+
+    # 医护/窗口岗位的资质必填校验
+    license_no = post.get("license_no", "").strip()
+    department = post.get("department", "").strip()
+    title = post.get("title", "").strip()
+    if apply_role in ("doctor", "pharmacist") and not license_no:
+        return fail("医师/药师注册须填写执业证或资格证号，供医务科核验")
+    if apply_role in ("doctor", "pharmacist", "pharmacy") and not department:
+        return fail("请填写所属科室或部门")
+
+    birth_date = _parse_birth(post.get("birth_date"))
+    if post.get("birth_date") and not birth_date:
+        return fail("出生日期格式不正确")
+
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        first_name=full_name,
+        email=email,
+        phone=phone,
+    )
+    user.gender = gender
+    user.birth_date = birth_date
+    user.address = post.get("address", "").strip()[:200]
+    user.emergency_contact = post.get("emergency_contact", "").strip()[:64]
+    user.emergency_phone = post.get("emergency_phone", "").strip()[:20]
+    user.apply_role = apply_role
+    user.license_no = license_no[:64]
+    user.department = department[:64]
+    user.title = title[:32]
+    user.institution = post.get("institution", "").strip()[:128]
+    user.practice_years = _safe_int(post.get("practice_years"))
+    user.education = post.get("education", "").strip()[:32]
+    user.apply_note = post.get("apply_note", "").strip()[:300]
+    if id_card:
+        user.id_card_encrypted = encrypt(id_card)
+        user.id_card_hash = hash_value(id_card)
+    # 患者注册即可用；医护/窗口岗位进入待审核
+    user.apply_status = "NONE" if apply_role == "patient" else "PENDING"
+    user.save()
+
+    _log(request, "REGISTER", "user", user.id, f"注册账号 {username}（{ROLE_LABEL.get(apply_role)}）", operator=user)
+
+    if apply_role == "patient":
+        patient_no = Patient.generate_patient_no()
+        Patient.objects.create(
+            patient_no=patient_no,
+            record_no=f"BA{patient_no}",
+            name=full_name,
+            gender=gender,
+            age=user.age,
+            user=user,
+            id_card_encrypted=encrypt(id_card) if id_card else "",
+            id_card_hash=hash_value(id_card) if id_card else "",
+            phone_encrypted=encrypt(phone),
+            phone_hash=hash_value(phone),
+            address=post.get("address", "").strip()[:200],
+            emergency_contact=post.get("emergency_contact", "").strip()[:64],
+            emergency_phone=post.get("emergency_phone", "").strip()[:20],
+            allergy_history=post.get("allergy_history", "").strip(),
+            medical_history=post.get("medical_history", "").strip(),
+            constitution=post.get("constitution", "BALANCED") or "BALANCED",
+            pregnancy_status=post.get("pregnancy_status", "NONE") or "NONE",
+            source="SELF",
         )
-
         patient_role, _ = Role.objects.get_or_create(
-            code="patient", defaults={"name": "患者", "description": "查询本人处方"}
+            code="patient", defaults={"name": "患者", "description": "查询本人处方与就诊记录"}
         )
         UserRole.objects.get_or_create(user=user, role=patient_role)
-
-        _log(request, "REGISTER", "user", user.id, f"注册新账号 {username}", operator=user)
-
         login(request, user)
-        messages.success(request, "注册成功，欢迎使用！")
+        messages.success(request, f"注册成功，已为您建立病案档案（病案号 {patient_no}）")
         return redirect(reverse(services.resolve_landing_url_name(user)))
 
-    return render(request, "users/register.html")
+    messages.success(request, "注册资料已提交，医务科审核通过后即可登录使用（一般 1 个工作日内）")
+    return redirect("users:login")
+
+
+def _safe_int(raw, default=None):
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+@login_required
+def pending_review(request):
+    """待审核/已驳回账号的状态页，避免这类账号登录后无处可去。"""
+    return render(request, "users/pending.html")
+
+
+@login_required
+def application_list(request):
+    """管理员审核注册者资料。"""
+    if not has_permission(request.user, "用户:审核"):
+        return deny(request, "仅管理员可审核注册资料", perm_code="用户:审核")
+
+    status = request.GET.get("status", "PENDING")
+    qs = User.objects.filter(apply_role__in=[code for code, _ in APPLY_ROLE_CHOICES])
+    if status:
+        qs = qs.filter(apply_status=status)
+    keyword = request.GET.get("q", "").strip()
+    if keyword:
+        from django.db.models import Q
+
+        qs = qs.filter(
+            Q(username__icontains=keyword) | Q(first_name__icontains=keyword) | Q(phone__icontains=keyword)
+        )
+    if request.GET.get("role"):
+        qs = qs.filter(apply_role=request.GET["role"])
+
+    counts = {
+        "PENDING": User.objects.filter(apply_status="PENDING").count(),
+        "APPROVED": User.objects.filter(apply_status="APPROVED").count(),
+        "REJECTED": User.objects.filter(apply_status="REJECTED").count(),
+    }
+    page = Paginator(qs.order_by("-date_joined"), 15).get_page(request.GET.get("page", 1))
+    return render(request, "users/application_list.html", {
+        "page": page,
+        "applications": page.object_list,
+        "status": status,
+        "keyword": keyword,
+        "counts": counts,
+        "role_choices": APPLY_ROLE_CHOICES,
+        "role_filter": request.GET.get("role", ""),
+    })
+
+
+@login_required
+@require_POST
+def application_review(request, pk):
+    """通过/驳回注册申请；通过时同步建立执业档案并授予角色。"""
+    if not has_permission(request.user, "用户:审核"):
+        return deny(request, "仅管理员可审核注册资料", perm_code="用户:审核")
+
+    target = get_object_or_404(User, pk=pk)
+    action = request.POST.get("action")
+    note = (request.POST.get("review_note") or "").strip()[:300]
+
+    if action == "approve":
+        role_code = APPLY_ROLE_TO_ROLE.get(target.apply_role)
+        role = Role.objects.filter(code=role_code).first() if role_code else None
+        if not role:
+            messages.error(request, "未找到对应角色，请先初始化角色数据")
+            return redirect("users:application_list")
+        UserRole.objects.get_or_create(user=target, role=role)
+
+        if target.apply_role == "doctor":
+            Doctor.objects.get_or_create(
+                user=target,
+                defaults={
+                    "license_no": target.license_no or f"ZY{target.id:06d}",
+                    "department": target.department or "中医科",
+                    "title": target.title or "主治医师",
+                },
+            )
+        elif target.apply_role == "pharmacist":
+            Pharmacist.objects.get_or_create(
+                user=target, defaults={"license_no": target.license_no or f"YS{target.id:06d}"}
+            )
+        target.apply_status = "APPROVED"
+        messages.success(request, f"已通过 {target.display_name} 的注册申请，角色：{role.name}")
+    elif action == "reject":
+        target.apply_status = "REJECTED"
+        messages.warning(request, f"已驳回 {target.display_name} 的注册申请")
+    else:
+        messages.error(request, "未知的审核操作")
+        return redirect("users:application_list")
+
+    target.reviewed_by = request.user
+    target.reviewed_at = timezone.now()
+    target.review_note = note
+    target.save(update_fields=["apply_status", "reviewed_by", "reviewed_at", "review_note"])
+    _log(request, action.upper(), "user", target.id, f"注册审核 {target.username} -> {target.apply_status}")
+    return redirect(request.META.get("HTTP_REFERER") or "users:application_list")
 
 
 def logout_view(request):
@@ -174,17 +425,15 @@ def doctor_list(request):
 
 
 def home_redirect(request):
-    """根路径按角色跳转到各自的工作台，避免患者登录后直接撞上"无权限"。"""
+    """根路径：未登录看门户封面，已登录按角色跳转到各自的工作台。"""
     if not request.user.is_authenticated:
-        return redirect("users:login")
+        return redirect("users:landing")
     return redirect(reverse(services.resolve_landing_url_name(request.user)))
 
 
 @login_required
 def profile_view(request):
-    """个人中心：查看本人角色与权限，也是无业务权限时的兜底落地页。"""
-    from apps.users.models import UserRole
-
+    """个人中心：本人注册资料、角色权限与审核状态。"""
     roles = list(UserRole.objects.filter(user=request.user).values_list("role__name", "role__description"))
     perms = sorted(get_user_permissions(request.user))
     return render(request, "users/profile.html", {
@@ -192,6 +441,8 @@ def profile_view(request):
         "perms": perms,
         "is_locked": services.is_locked(request.user),
         "lock_minutes": services.lock_remaining_minutes(request.user),
+        "apply_role_label": ROLE_LABEL.get(request.user.apply_role, "患者"),
+        "apply_status_label": dict(APPLY_STATUS_CHOICES).get(request.user.apply_status, "—"),
     })
 
 

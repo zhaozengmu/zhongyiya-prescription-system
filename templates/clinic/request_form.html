@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}申请病案材料 - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block crumb %}<a href="{% url 'clinic:request_list' %}">病案服务</a> / <b>发起申请</b>{% endblock %}
+{% block page_name %}申请病案材料{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>申请病案材料</h1>
+        <p class="sub">依据《医疗机构病历管理规定》，复印病历需提供有效身份证明，受理后凭取件码领取</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-sm btn-ghost" href="{% url 'clinic:request_list' %}"><i class="bi bi-arrow-left"></i> 返回</a>
+    </div>
+</div>
+
+<form method="post" class="row g-3">
+    {% csrf_token %}
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="form-sect-title"><i class="bi bi-file-earmark-text"></i> 申请内容</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="requestType">申请类型 <span style="color:#c0392b">*</span></label>
+                        <select class="form-select" id="requestType" name="request_type" required>
+                            {% for code, label in type_choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="copies">份数</label>
+                        <input type="number" class="form-control" id="copies" name="copies" value="1" min="1" max="20">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="delivery">取件方式</label>
+                        <select class="form-select" id="delivery" name="delivery">
+                            {% for code, label in delivery_choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="purpose">用途说明 <span style="color:#c0392b">*</span></label>
+                        <input type="text" class="form-control" id="purpose" name="purpose" maxlength="200" required
+                               placeholder="如：商业保险理赔 / 转诊至上级医院 / 单位报销">
+                    </div>
+                    <div class="col-12" id="addressWrap" style="display:none;">
+                        <label class="form-label" for="address">收件地址</label>
+                        <input type="text" class="form-control" id="address" name="address" maxlength="200"
+                               placeholder="收件人、电话与详细地址">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="form-sect-title"><i class="bi bi-person-check"></i> 申请人信息</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="applicantName">申请人姓名</label>
+                        <input type="text" class="form-control" id="applicantName" name="applicant_name"
+                               value="{{ patient.name }}" maxlength="64">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="relation">与患者关系</label>
+                        <select class="form-select" id="relation" name="relation">
+                            {% for code, label in relation_choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="phone">联系电话 <span style="color:#c0392b">*</span></label>
+                        <input type="tel" class="form-control" id="phone" name="phone" maxlength="20" required
+                               placeholder="受理进度将通过该号码通知">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="last4">证件号码后四位</label>
+                        <input type="text" class="form-control" id="last4" name="id_card_last4" maxlength="8"
+                               placeholder="用于身份核验">
+                    </div>
+                </div>
+                <div class="form-text mt-2">患者：{{ patient.name }} · 病案号 {{ patient.record_no|default:patient.patient_no }}</div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-brand"><i class="bi bi-send"></i> 提交申请</button>
+            <a class="btn btn-ghost" href="{% url 'clinic:request_list' %}">取消</a>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-info-circle me-1"></i> 办理须知</div>
+            <div class="card-body" style="font-size:12.5px;color:var(--ink-500);line-height:1.95;">
+                <div>· 本人办理需核对身份证件；代办需提供委托关系说明</div>
+                <div>· 病案室一般在 1~2 个工作日内受理</div>
+                <div>· 受理完成后生成 6 位取件码，凭码到病案窗口领取</div>
+                <div>· 邮寄方式需填写准确收件地址，运费到付</div>
+                <div>· 涉及第三方隐私的材料可能被驳回</div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+    (function () {
+        const delivery = document.getElementById('delivery');
+        const wrap = document.getElementById('addressWrap');
+        function sync() { wrap.style.display = delivery.value === 'MAIL' ? '' : 'none'; }
+        delivery.addEventListener('change', sync);
+        sync();
+    })();
+</script>
+{% endblock %}

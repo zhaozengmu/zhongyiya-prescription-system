@@ -26,6 +26,14 @@
                 </div>
                 <dl class="kv">
                     <dt>手机号</dt><dd>{{ user.phone|default:"—" }}</dd>
+                    <dt>申请身份</dt><dd>{{ apply_role_label }}</dd>
+                    <dt>审核状态</dt>
+                    <dd>
+                        {% if user.apply_status == 'PENDING' %}<span class="pill pill-amber">{{ apply_status_label }}</span>
+                        {% elif user.apply_status == 'REJECTED' %}<span class="pill pill-red">{{ apply_status_label }}</span>
+                        {% elif user.apply_status == 'APPROVED' %}<span class="pill pill-green">{{ apply_status_label }}</span>
+                        {% else %}<span class="pill pill-gray">{{ apply_status_label }}</span>{% endif %}
+                    </dd>
                     <dt>最近登录</dt><dd>{{ user.last_login|date:"Y-m-d H:i"|default:"—" }}</dd>
                     <dt>账号状态</dt>
                     <dd>
@@ -33,6 +41,26 @@
                         <span class="pill pill-red">已锁定（剩 {{ lock_minutes }} 分钟）</span>
                         {% else %}<span class="pill pill-green">正常</span>{% endif %}
                     </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <div class="panel-title"><i class="bi bi-person-vcard"></i> 注册资料</div>
+                <dl class="kv">
+                    <dt>姓名 / 性别</dt><dd>{{ user.display_name }} · {{ user.get_gender_display }}</dd>
+                    <dt>出生日期</dt><dd>{{ user.birth_date|date:"Y-m-d"|default:"—" }}{% if user.age %}（{{ user.age }} 岁）{% endif %}</dd>
+                    <dt>电子邮箱</dt><dd>{{ user.email|default:"—" }}</dd>
+                    <dt>执业证号</dt><dd>{{ user.license_no|default:"—" }}</dd>
+                    <dt>科室 / 职称</dt><dd>{{ user.department|default:"—" }}{% if user.title %} · {{ user.title }}{% endif %}</dd>
+                    <dt>单位 / 院校</dt><dd>{{ user.institution|default:"—" }}</dd>
+                    <dt>学历 / 从业</dt><dd>{{ user.education|default:"—" }}{% if user.practice_years %} · {{ user.practice_years }} 年{% endif %}</dd>
+                    <dt>通讯地址</dt><dd>{{ user.address|default:"—" }}</dd>
+                    <dt>紧急联系人</dt><dd>{{ user.emergency_contact|default:"—" }}{% if user.emergency_phone %} · {{ user.emergency_phone }}{% endif %}</dd>
+                    {% if user.apply_status == 'REJECTED' and user.review_note %}
+                    <dt>审核意见</dt><dd style="color:var(--danger);">{{ user.review_note }}</dd>
+                    {% endif %}
                 </dl>
             </div>
         </div>

@@ -28,6 +28,13 @@ logger = logging.getLogger(__name__)
 PAGE_SIZE = 20
 
 
+def _safe_int(raw, default=None):
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
 def _log(request, action_type, object_type, object_id, detail, result="success"):
     from apps.stats.models import OperationLog
 
@@ -97,15 +104,41 @@ def my_prescriptions(request):
 
 @login_required
 def prescription_create(request):
-    """创建处方草稿页面。"""
+    """创建处方草稿页面。
+
+    支持从电子病历带入：``?patient=<id>&record=<id>``，
+    开方保存后回写病历的关联处方，形成"病历—处方"闭环。
+    """
     doctor = getattr(request.user, "doctor", None)
     if not doctor:
         return deny(request, "仅医师账号可开具处方", perm_code="处方:新增")
+
+    default_patient_id = _safe_int(request.GET.get("patient"))
+    record_id = _safe_int(request.GET.get("record"))
+    record = None
+    if record_id:
+        from apps.clinic.models import MedicalRecord
+
+        record = MedicalRecord.objects.filter(pk=record_id, doctor=doctor).select_related("patient").first()
+        if record:
+            default_patient_id = record.patient_id
+
     patients = Patient.objects.filter(is_deleted=False).order_by("-last_visit_at", "-created_at")[:300]
+    if default_patient_id:
+        # 病历对应的患者可能不在最近 300 条里，补到最前面避免下拉框选不中
+        extra = Patient.objects.filter(pk=default_patient_id, is_deleted=False).first()
+        if extra and all(p.pk != extra.pk for p in patients):
+            patients = [extra] + list(patients)
+
     templates = FormulaTemplate.objects.prefetch_related("items__herb").all()
     herbs = Herb.objects.all().order_by("pinyin_initial", "name")
     return render(request, "prescriptions/prescription_form.html", {
-        "patients": patients, "templates": templates, "herbs": herbs,
+        "patients": patients,
+        "templates": templates,
+        "herbs": herbs,
+        "default_patient_id": default_patient_id,
+        "record_id": record.pk if record else "",
+        "medical_record": record,
     })
 
 
@@ -310,6 +343,18 @@ def api_prescription_create(request):
         status="DRAFT",
     )
     _log(request, "CREATE", "prescription", prescription.id, f"创建处方 {prescription.presc_no}")
+
+    # 从电子病历开方：回写关联，形成「病历—处方」闭环
+    record_id = _safe_int(data.get("record_id"))
+    if record_id:
+        from apps.clinic.models import MedicalRecord
+
+        record = MedicalRecord.objects.filter(pk=record_id, doctor=doctor, patient=patient).first()
+        if record:
+            record.prescription = prescription
+            record.save(update_fields=["prescription", "updated_at"])
+            _log(request, "LINK", "medical_record", record.id, f"病历关联处方 {prescription.presc_no}")
+
     return JsonResponse({
         "code": 200, "message": "ok",
         "data": {"id": prescription.id, "presc_no": prescription.presc_no},

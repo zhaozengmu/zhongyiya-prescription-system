@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}诊室工作台 - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block page_name %}诊室工作台{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>诊室工作台</h1>
+        <p class="sub">
+            {% if doctor %}{{ doctor.department }} · {{ doctor.title }} · {{ doctor.user.display_name }}{% else %}全科门诊总览（管理视角）{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <div class="date-nav">
+            <a class="btn btn-sm btn-ghost" href="?date={{ prev_date|date:'Y-m-d' }}"><i class="bi bi-chevron-left"></i></a>
+            <span class="cur">{{ visit_date|date:"Y-m-d" }}{% if visit_date == today %}（今天）{% endif %}</span>
+            <a class="btn btn-sm btn-ghost" href="?date={{ next_date|date:'Y-m-d' }}"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        <a class="btn btn-sm btn-outline-brand" href="{% url 'clinic:registration_list' %}?date={{ visit_date|date:'Y-m-d' }}">
+            <i class="bi bi-list-ul"></i> 全部号源
+        </a>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="metric is-warn">
+        <div class="label"><i class="bi bi-hourglass-split"></i> 待就诊</div>
+        <div class="value">{{ counts.waiting }}</div>
+        <div class="foot">尚未叫号</div>
+    </div>
+    <div class="metric is-info">
+        <div class="label"><i class="bi bi-person-check"></i> 就诊中</div>
+        <div class="value">{{ counts.in_progress }}</div>
+        <div class="foot">已叫号未签发</div>
+    </div>
+    <div class="metric is-ok">
+        <div class="label"><i class="bi bi-check2-circle"></i> 已完成</div>
+        <div class="value">{{ counts.finished }}</div>
+        <div class="foot">病历已签发</div>
+    </div>
+    <div class="metric is-wood">
+        <div class="label"><i class="bi bi-people"></i> 当日号源</div>
+        <div class="value">{{ counts.total }}</div>
+        <div class="foot">{{ visit_date|date:"n 月 j 日" }} 合计</div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list-ol me-1"></i> 当日叫号队列
+                <span class="ms-auto" style="font-size:12px;color:var(--ink-300);font-weight:400;">按排队序号排序</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:56px;">序号</th>
+                            <th>患者</th>
+                            <th>号别</th>
+                            <th>时段</th>
+                            <th>状态</th>
+                            <th style="width:190px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in regs %}
+                        <tr {% if reg.status == 'IN_PROGRESS' %}class="is-active"{% endif %}>
+                            <td><span class="queue-no">{{ reg.queue_no }}</span></td>
+                            <td>
+                                <div style="font-weight:600;">{{ reg.patient.name }}</div>
+                                <div style="font-size:12px;color:var(--ink-300);">
+                                    {{ reg.patient.get_gender_display }} · {{ reg.patient.age|default:"—" }} 岁 · {{ reg.reg_no }}
+                                </div>
+                            </td>
+                            <td><span class="pill pill-gray">{{ reg.get_reg_type_display }}</span></td>
+                            <td style="font-size:12.5px;color:var(--ink-500);">{{ reg.time_slot }}</td>
+                            <td>
+                                {% if reg.status == 'WAITING' %}<span class="pill pill-amber">待就诊</span>
+                                {% elif reg.status == 'IN_PROGRESS' %}<span class="pill pill-blue">就诊中</span>
+                                {% elif reg.status == 'FINISHED' %}<span class="pill pill-green">已完成</span>
+                                {% elif reg.status == 'CANCELLED' %}<span class="pill pill-gray">已取消</span>
+                                {% else %}<span class="pill pill-gray">爽约</span>{% endif %}
+                            </td>
+                            <td>
+                                <div class="act-row">
+                                    {% if reg.status == 'WAITING' or reg.status == 'IN_PROGRESS' %}
+                                    <form method="post" action="{% url 'clinic:registration_call' reg.pk %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-xs primary">
+                                            <i class="bi bi-mic"></i> {% if reg.status == 'WAITING' %}叫号接诊{% else %}继续接诊{% endif %}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% if reg.medical_record %}
+                                    <a class="btn-xs" href="{% url 'clinic:record_detail' reg.medical_record.pk %}">
+                                        <i class="bi bi-file-medical"></i> 病历
+                                    </a>
+                                    {% endif %}
+                                    <a class="btn-xs" href="{% url 'patients:patient_detail' reg.patient.pk %}">
+                                        <i class="bi bi-person-lines-fill"></i> 档案
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6"><div class="empty"><i class="bi bi-calendar-x"></i><div>当天暂无号源</div>
+                            <div style="font-size:12.5px;">可到「挂号与接诊」为患者加号</div></div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-file-earmark-medical me-1"></i> 当日病历</div>
+            <div class="card-body" style="padding:12px 16px;">
+                {% for rec in records %}
+                <div class="d-flex justify-content-between align-items-start py-2" style="border-bottom:1px dashed var(--line);">
+                    <div>
+                        <a href="{% url 'clinic:record_detail' rec.pk %}" style="font-size:13.5px;font-weight:600;color:var(--brand-800);">
+                            {{ rec.patient.name }}
+                        </a>
+                        <div style="font-size:12px;color:var(--ink-500);">{{ rec.tcm_diagnosis|default:"诊断待补充" }}</div>
+                    </div>
+                    <span class="pill {% if rec.status == 'SIGNED' %}pill-green{% else %}pill-amber{% endif %}">
+                        {{ rec.get_status_display }}
+                    </span>
+                </div>
+                {% empty %}
+                <div class="empty" style="padding:20px 0;"><i class="bi bi-journal-x"></i><div>今日暂无病历</div></div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if can_handle_request %}
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-folder2-open me-1"></i> 病案申请待办
+                <a class="ms-auto" href="{% url 'clinic:request_list' %}" style="font-size:12px;font-weight:400;">全部</a>
+            </div>
+            <div class="card-body" style="padding:12px 16px;">
+                {% for req in pending_requests %}
+                <div class="py-2" style="border-bottom:1px dashed var(--line);">
+                    <a href="{% url 'clinic:request_detail' req.pk %}" style="font-size:13.5px;font-weight:600;color:var(--brand-800);">
+                        {{ req.patient.name }} · {{ req.get_request_type_display }}
+                    </a>
+                    <div style="font-size:12px;color:var(--ink-500);">{{ req.created_at|date:"m-d H:i" }} 提交 · {{ req.phone }}</div>
+                </div>
+                {% empty %}
+                <div class="empty" style="padding:20px 0;"><i class="bi bi-inbox"></i><div>暂无待受理申请</div></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

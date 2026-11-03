@@ -47,6 +47,18 @@ class Patient(models.Model):
     id_card_hash = models.CharField("身份证号哈希", max_length=64, blank=True, db_index=True)
     phone_encrypted = models.TextField("联系电话密文", blank=True)
     phone_hash = models.CharField("联系电话哈希", max_length=64, blank=True, db_index=True)
+    # ===== 院内病案与健康档案扩展 =====
+    record_no = models.CharField("病案号", max_length=32, blank=True, db_index=True)
+    blood_type = models.CharField("血型", max_length=8, blank=True)
+    marital_status = models.CharField("婚姻状况", max_length=16, blank=True)
+    occupation = models.CharField("职业", max_length=64, blank=True)
+    address = models.CharField("常住地址", max_length=200, blank=True)
+    emergency_contact = models.CharField("紧急联系人", max_length=64, blank=True)
+    emergency_phone = models.CharField("紧急联系人电话", max_length=20, blank=True)
+    guardian_name = models.CharField("监护人/陪同人", max_length=64, blank=True)
+    # 档案来源：院内建档 or 患者自助注册
+    SOURCE_CHOICES = [("HOSPITAL", "院内建档"), ("SELF", "患者自助注册")]
+    source = models.CharField("档案来源", max_length=16, choices=SOURCE_CHOICES, default="HOSPITAL")
     allergy_history = models.TextField("过敏史", blank=True)
     medical_history = models.TextField("既往病史", blank=True)
     constitution = models.CharField("体质辨识", max_length=32, choices=CONSTITUTION_CHOICES, default="BALANCED")

@@ -1,179 +1,393 @@
-{% load static %}
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 - TCM-RMS 中医处方开具与审核管理系统</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #06281e 0%, #0c4534 45%, #17714f 100%);
-            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-            padding: 20px;
-        }
-        .register-card {
-            width: 100%;
-            max-width: 420px;
-            background: #fff;
-            border-radius: 22px;
-            padding: 40px 48px 32px;
-            text-align: center;
-        }
-        .logo {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 14px;
-            background: linear-gradient(135deg, #2ba871, #1a8a5c);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .title {
-            font-size: 26px;
-            font-weight: 700;
-            color: #1f2937;
-            letter-spacing: 1px;
-        }
-        .subtitle {
-            font-size: 13px;
-            color: #8a94a0;
-            margin: 6px 0 24px;
-        }
-        .field { text-align: left; margin-bottom: 14px; }
-        .field label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 6px;
-        }
-        .field label .req { color: #e74c3c; }
-        .field input {
-            width: 100%;
-            height: 44px;
-            border: 1px solid #d8dee4;
-            border-radius: 12px;
-            padding: 0 14px;
-            font-size: 14px;
-            color: #1f2937;
-            outline: none;
-            transition: border-color .2s, box-shadow .2s;
-        }
-        .field input:focus {
-            border-color: #2ba871;
-            box-shadow: 0 0 0 3px rgba(43, 168, 113, .15);
-        }
-        .field input::placeholder { color: #b6bdc5; }
-        .btn-register {
-            width: 100%;
-            height: 46px;
-            margin-top: 8px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #27a06a, #1a8a5c);
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            letter-spacing: 8px;
-            cursor: pointer;
-            transition: opacity .2s;
-        }
-        .btn-register:hover { opacity: .9; }
-        .login-link {
-            margin-top: 14px;
-            font-size: 13px;
-            color: #8a94a0;
-        }
-        .login-link a {
-            color: #1a8a5c;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .login-link a:hover { text-decoration: underline; }
-        .role-note {
-            margin-top: 16px;
-            font-size: 12px;
-            color: #b6bdc5;
-            line-height: 1.8;
-        }
-        .alert-msg {
-            background: #fdecec;
-            border: 1px solid #f5c2c2;
-            color: #c0392b;
-            font-size: 13px;
-            border-radius: 10px;
-            padding: 9px 12px;
-            margin-bottom: 14px;
-            text-align: left;
-        }
-        .alert-ok {
-            background: #e9f7ef;
-            border: 1px solid #bfe8d0;
-            color: #1a8a5c;
-            font-size: 13px;
-            border-radius: 10px;
-            padding: 9px 12px;
-            margin-bottom: 14px;
-            text-align: left;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>注册 - TCM-RMS 中医处方开具与审核管理系统</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    :root {
+        --brand-900: #0f3d2e; --brand-800: #154f3b; --brand-700: #1a5f47;
+        --brand-600: #1f6f52; --brand-500: #2f8a66; --brand-100: #e7f1eb; --brand-50: #f2f8f4;
+        --wood-600: #9a7136; --wood-50: #faf4ea;
+        --paper: #f7f5f0; --card: #fffefb; --ink-900: #1b211d; --ink-700: #3d473f;
+        --ink-500: #6b7871; --ink-300: #98a49c; --line: #e5e2d8; --line-strong: #d3cfc2;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        min-height: 100vh; background: var(--paper);
+        font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+        color: var(--ink-900); line-height: 1.6;
+    }
+    .shell { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+    /* 左侧品牌 */
+    .aside {
+        background: linear-gradient(160deg, #0b2f23 0%, #124a37 55%, #1a5f47 100%);
+        color: #fff; padding: 40px 36px; position: sticky; top: 0; height: 100vh;
+        display: flex; flex-direction: column; gap: 26px; overflow: hidden;
+    }
+    .aside::after {
+        content: ""; position: absolute; right: -90px; bottom: -110px; width: 300px; height: 300px;
+        border-radius: 50%; border: 44px solid rgba(255,255,255,.06);
+    }
+    .logo-box { background: #fff; border-radius: 10px; padding: 5px 9px; align-self: flex-start; }
+    .logo-box img { display: block; height: 34px; width: auto; }
+    .aside h2 { font-size: 24px; line-height: 1.4; letter-spacing: -.3px; margin-top: 8px; }
+    .aside p { font-size: 13px; color: rgba(255,255,255,.72); }
+    .aside ul { list-style: none; font-size: 13px; color: rgba(255,255,255,.8); display: grid; gap: 9px; }
+    .aside li { display: flex; gap: 8px; align-items: flex-start; }
+    .aside li i { color: #8fd6b4; margin-top: 3px; }
+    .aside .foot { margin-top: auto; font-size: 11.5px; color: rgba(255,255,255,.5); position: relative; z-index: 2; }
+    /* 右侧表单 */
+    .main { padding: 34px 30px 60px; }
+    .card {
+        max-width: 780px; margin: 0 auto; background: var(--card); border: 1px solid var(--line);
+        border-radius: 18px; padding: 32px 34px 26px; box-shadow: 0 20px 50px -34px rgba(15,61,46,.4);
+    }
+    .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+    .head h1 { font-size: 23px; letter-spacing: -.3px; }
+    .head p { font-size: 12.5px; color: var(--ink-500); margin-top: 4px; }
+    .head a { font-size: 13px; color: var(--brand-700); font-weight: 600; white-space: nowrap; }
+    .alert-msg {
+        background: #fdecec; border: 1px solid #f5c2c2; color: #b3453c; font-size: 13px;
+        border-radius: 10px; padding: 10px 13px; margin: 14px 0 4px;
+    }
+    .sect { margin-top: 24px; }
+    .sect-title {
+        display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700;
+        color: var(--brand-800); padding-bottom: 9px; border-bottom: 1px solid var(--line); margin-bottom: 15px;
+    }
+    .sect-title i { color: var(--brand-600); }
+    .sect-title small { font-weight: 400; color: var(--ink-300); font-size: 11.5px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+    .full { grid-column: 1 / -1; }
+    .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-700); margin-bottom: 5px; }
+    .field label .req { color: #c0392b; }
+    .field input, .field select, .field textarea {
+        width: 100%; height: 42px; border: 1px solid var(--line-strong); border-radius: 10px;
+        padding: 0 12px; font-size: 13.5px; color: var(--ink-900); background: #fff;
+        outline: none; transition: .16s; font-family: inherit;
+    }
+    .field textarea { height: 76px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
+    .field input:focus, .field select:focus, .field textarea:focus {
+        border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(47,138,102,.14);
+    }
+    .field .hint { font-size: 11px; color: var(--ink-300); margin-top: 4px; }
+    /* 角色卡 */
+    .roles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; }
+    .role { position: relative; }
+    .role input { position: absolute; opacity: 0; pointer-events: none; }
+    .role span {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+        height: 74px; border: 1px solid var(--line-strong); border-radius: 11px; cursor: pointer;
+        font-size: 12.5px; color: var(--ink-700); background: #fff; transition: .16s; text-align: center;
+    }
+    .role span i { font-size: 17px; color: var(--ink-300); }
+    .role input:checked + span {
+        border-color: var(--brand-500); background: var(--brand-50); color: var(--brand-800); font-weight: 600;
+        box-shadow: 0 0 0 2px rgba(47,138,102,.12);
+    }
+    .role input:checked + span i { color: var(--brand-600); }
+    /* 验证码 */
+    .cap-row { display: flex; gap: 10px; }
+    .cap-row input { flex: 1; }
+    .cap-img {
+        width: 132px; height: 42px; border: 1px solid var(--line-strong); border-radius: 10px;
+        cursor: pointer; background: var(--brand-50);
+    }
+    .submit {
+        width: 100%; height: 46px; margin-top: 22px; border: none; border-radius: 11px;
+        background: linear-gradient(135deg, var(--brand-600), var(--brand-800));
+        color: #fff; font-size: 15px; font-weight: 600; letter-spacing: 3px; cursor: pointer;
+        transition: .18s; font-family: inherit;
+    }
+    .submit:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .foot-note { text-align: center; font-size: 12px; color: var(--ink-300); margin-top: 14px; line-height: 1.8; }
+    .foot-note a { color: var(--brand-700); font-weight: 600; }
+    .notice {
+        display: flex; gap: 9px; align-items: flex-start; background: var(--wood-50);
+        border: 1px solid #ecdcbd; border-radius: 10px; padding: 10px 12px;
+        font-size: 12px; color: #6b5330; line-height: 1.7; margin-top: 4px;
+    }
+    .notice i { color: var(--wood-600); margin-top: 2px; }
+    @media (max-width: 1000px) { .shell { grid-template-columns: 1fr; } .aside { display: none; } }
+    @media (max-width: 640px) {
+        .main { padding: 16px 12px 40px; }
+        .card { padding: 22px 16px 20px; border-radius: 14px; }
+        .grid2 { grid-template-columns: 1fr; }
+        .roles { grid-template-columns: repeat(3, 1fr); }
+        .head h1 { font-size: 20px; }
+    }
+</style>
 </head>
 <body>
-    <div class="register-card">
-        <div class="logo">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-                <rect x="9.2" y="2.6" width="8" height="15" rx="4" transform="rotate(45 9.2 2.6)" fill="#ffffff"/>
-                <rect x="11.2" y="9.4" width="4" height="7.5" transform="rotate(45 11.2 9.4)" fill="#1a8a5c"/>
-            </svg>
+<div class="shell">
+    <aside class="aside">
+        <div class="logo-box"><img src="{% static 'img/college-logo.jpg' %}" alt="贵州中医药大学时珍学院"></div>
+        <div>
+            <h2>建立你的院内身份</h2>
+            <p>一次填写，同步生成账号、病案与执业档案。</p>
         </div>
-        <div class="title">注册新账号</div>
-        <div class="subtitle">中医处方开具与审核管理系统</div>
+        <ul>
+            <li><i class="bi bi-check2"></i> 患者注册后即可预约挂号、查看本人病历与处方</li>
+            <li><i class="bi bi-check2"></i> 医师 / 药师须填写执业资质，由医务科审核开通</li>
+            <li><i class="bi bi-check2"></i> 身份证与手机号加密存储，列表页掩码展示</li>
+            <li><i class="bi bi-check2"></i> 所有注册与审核动作全量留痕</li>
+        </ul>
+        <div class="foot">课程实训系统 · 全程使用模拟数据 · 禁止用于真实诊疗</div>
+    </aside>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert-msg">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+    <main class="main">
+        <div class="card">
+            <div class="head">
+                <div>
+                    <h1>注册新账号</h1>
+                    <p>带 <span style="color:#c0392b">*</span> 为必填项，信息仅用于院内身份核验</p>
+                </div>
+                <a href="{% url 'users:login' %}"><i class="bi bi-arrow-left"></i> 返回登录</a>
+            </div>
 
-        <form method="post">
-            {% csrf_token %}
-            <div class="field">
-                <label for="username">用户名 <span class="req">*</span></label>
-                <input type="text" id="username" name="username" placeholder="请输入登录账号" required>
-            </div>
-            <div class="field">
-                <label for="full_name">姓名 <span class="req">*</span></label>
-                <input type="text" id="full_name" name="full_name" placeholder="请输入真实姓名" required>
-            </div>
-            <div class="field">
-                <label for="phone">联系电话</label>
-                <input type="text" id="phone" name="phone" placeholder="选填">
-            </div>
-            <div class="field">
-                <label for="password">密码 <span class="req">*</span></label>
-                <input type="password" id="password" name="password" placeholder="至少 6 位" required>
-            </div>
-            <div class="field">
-                <label for="password2">确认密码 <span class="req">*</span></label>
-                <input type="password" id="password2" name="password2" placeholder="请再次输入密码" required>
-            </div>
-            <button type="submit" class="btn-register">注册</button>
-        </form>
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert-msg"><i class="bi bi-exclamation-circle"></i> {{ message }}</div>
+                {% endfor %}
+            {% endif %}
 
-        <div class="login-link">
-            已有账号？<a href="{% url 'users:login' %}">去登录</a>
+            <form method="post" autocomplete="off" id="regForm">
+                {% csrf_token %}
+
+                <!-- 身份类型 -->
+                <div class="sect">
+                    <div class="sect-title"><i class="bi bi-person-badge"></i> 注册身份 <small>决定后续可用的功能与审核流程</small></div>
+                    <div class="roles">
+                        <label class="role">
+                            <input type="radio" name="apply_role" value="patient" {% if not selected_role or selected_role == 'patient' %}checked{% endif %}>
+                            <span><i class="bi bi-person-heart"></i>患者</span>
+                        </label>
+                        <label class="role">
+                            <input type="radio" name="apply_role" value="doctor" {% if selected_role == 'doctor' %}checked{% endif %}>
+                            <span><i class="bi bi-person-workspace"></i>医师</span>
+                        </label>
+                        <label class="role">
+                            <input type="radio" name="apply_role" value="pharmacist" {% if selected_role == 'pharmacist' %}checked{% endif %}>
+                            <span><i class="bi bi-capsule"></i>药师</span>
+                        </label>
+                        <label class="role">
+                            <input type="radio" name="apply_role" value="cashier" {% if selected_role == 'cashier' %}checked{% endif %}>
+                            <span><i class="bi bi-cash-coin"></i>收费员</span>
+                        </label>
+                        <label class="role">
+                            <input type="radio" name="apply_role" value="pharmacy" {% if selected_role == 'pharmacy' %}checked{% endif %}>
+                            <span><i class="bi bi-box-seam"></i>药房管理员</span>
+                        </label>
+                    </div>
+                    <div class="notice" data-show="patient">
+                        <i class="bi bi-info-circle"></i>
+                        <span>患者注册将自动建立病案档案（生成病案号），可立即在线预约挂号并查看本人就诊记录。</span>
+                    </div>
+                    <div class="notice" data-show="staff" style="display:none">
+                        <i class="bi bi-shield-exclamation"></i>
+                        <span>医护与窗口岗位需填写资质信息，提交后由医务科审核，通过后方可登录执业。</span>
+                    </div>
+                </div>
+
+                <!-- 账号信息 -->
+                <div class="sect">
+                    <div class="sect-title"><i class="bi bi-shield-lock"></i> 账号与密码</div>
+                    <div class="grid2">
+                        <div class="field">
+                            <label for="username">登录账号 <span class="req">*</span></label>
+                            <input type="text" id="username" name="username" value="{{ form.username|default:'' }}"
+                                   placeholder="字母开头，3~20 位" required>
+                        </div>
+                        <div class="field">
+                            <label for="email">电子邮箱</label>
+                            <input type="email" id="email" name="email" value="{{ form.email|default:'' }}" placeholder="用于接收审核结果（选填）">
+                        </div>
+                        <div class="field">
+                            <label for="password">登录密码 <span class="req">*</span></label>
+                            <input type="password" id="password" name="password" placeholder="至少 8 位，建议字母+数字" required>
+                        </div>
+                        <div class="field">
+                            <label for="password2">确认密码 <span class="req">*</span></label>
+                            <input type="password" id="password2" name="password2" placeholder="请再次输入密码" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 个人信息 -->
+                <div class="sect">
+                    <div class="sect-title"><i class="bi bi-person-vcard"></i> 个人基本信息</div>
+                    <div class="grid2">
+                        <div class="field">
+                            <label for="full_name">真实姓名 <span class="req">*</span></label>
+                            <input type="text" id="full_name" name="full_name" value="{{ form.full_name|default:'' }}" placeholder="与证件一致" required>
+                        </div>
+                        <div class="field">
+                            <label for="gender">性别 <span class="req">*</span></label>
+                            <select id="gender" name="gender" required>
+                                <option value="">请选择</option>
+                                <option value="M" {% if form.gender == 'M' %}selected{% endif %}>男</option>
+                                <option value="F" {% if form.gender == 'F' %}selected{% endif %}>女</option>
+                                <option value="U" {% if form.gender == 'U' %}selected{% endif %}>保密</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="phone">手机号 <span class="req">*</span></label>
+                            <input type="tel" id="phone" name="phone" value="{{ form.phone|default:'' }}" placeholder="11 位手机号" maxlength="11" required>
+                        </div>
+                        <div class="field">
+                            <label for="birth_date">出生日期</label>
+                            <input type="date" id="birth_date" name="birth_date" value="{{ form.birth_date|default:'' }}">
+                        </div>
+                        <div class="field">
+                            <label for="id_card">身份证号</label>
+                            <input type="text" id="id_card" name="id_card" value="{{ form.id_card|default:'' }}" placeholder="18 位，末位可为 X" maxlength="18">
+                            <div class="hint">加密存储，仅用于实名核验与病案匹配</div>
+                        </div>
+                        <div class="field">
+                            <label for="address">常住地址</label>
+                            <input type="text" id="address" name="address" value="{{ form.address|default:'' }}" placeholder="省 / 市 / 区 / 详细地址">
+                        </div>
+                        <div class="field">
+                            <label for="emergency_contact">紧急联系人</label>
+                            <input type="text" id="emergency_contact" name="emergency_contact" value="{{ form.emergency_contact|default:'' }}" placeholder="姓名">
+                        </div>
+                        <div class="field">
+                            <label for="emergency_phone">紧急联系人电话</label>
+                            <input type="tel" id="emergency_phone" name="emergency_phone" value="{{ form.emergency_phone|default:'' }}" placeholder="11 位手机号">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 医护资质 -->
+                <div class="sect" data-show="staff" style="display:none">
+                    <div class="sect-title"><i class="bi bi-patch-check"></i> 执业资质 <small>医师、药师必填</small></div>
+                    <div class="grid2">
+                        <div class="field">
+                            <label for="license_no">执业证 / 资格证号</label>
+                            <input type="text" id="license_no" name="license_no" value="{{ form.license_no|default:'' }}" placeholder="如 141520000000123">
+                        </div>
+                        <div class="field">
+                            <label for="department">所属科室 / 部门</label>
+                            <input type="text" id="department" name="department" value="{{ form.department|default:'' }}" placeholder="如 中医内科 / 药房 / 收费处">
+                        </div>
+                        <div class="field">
+                            <label for="title">职称 / 岗位</label>
+                            <select id="title" name="title">
+                                <option value="">请选择</option>
+                                <option value="主任医师" {% if form.title == '主任医师' %}selected{% endif %}>主任医师</option>
+                                <option value="副主任医师" {% if form.title == '副主任医师' %}selected{% endif %}>副主任医师</option>
+                                <option value="主治医师" {% if form.title == '主治医师' %}selected{% endif %}>主治医师</option>
+                                <option value="住院医师" {% if form.title == '住院医师' %}selected{% endif %}>住院医师</option>
+                                <option value="主管药师" {% if form.title == '主管药师' %}selected{% endif %}>主管药师</option>
+                                <option value="药师" {% if form.title == '药师' %}selected{% endif %}>药师</option>
+                                <option value="其他" {% if form.title == '其他' %}selected{% endif %}>其他</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="institution">工作单位 / 毕业院校</label>
+                            <input type="text" id="institution" name="institution" value="{{ form.institution|default:'' }}" placeholder="如 贵州中医药大学时珍学院">
+                        </div>
+                        <div class="field">
+                            <label for="practice_years">从业年限</label>
+                            <input type="number" id="practice_years" name="practice_years" value="{{ form.practice_years|default:'' }}" min="0" max="60" placeholder="年">
+                        </div>
+                        <div class="field">
+                            <label for="education">最高学历</label>
+                            <select id="education" name="education">
+                                <option value="">请选择</option>
+                                <option value="博士" {% if form.education == '博士' %}selected{% endif %}>博士</option>
+                                <option value="硕士" {% if form.education == '硕士' %}selected{% endif %}>硕士</option>
+                                <option value="本科" {% if form.education == '本科' %}selected{% endif %}>本科</option>
+                                <option value="大专" {% if form.education == '大专' %}selected{% endif %}>大专</option>
+                                <option value="其他" {% if form.education == '其他' %}selected{% endif %}>其他</option>
+                            </select>
+                        </div>
+                        <div class="field full">
+                            <label for="apply_note">申请说明</label>
+                            <textarea id="apply_note" name="apply_note" placeholder="简述岗位职责或申请事由，便于医务科审核">{{ form.apply_note|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 患者健康档案 -->
+                <div class="sect" data-show="patient">
+                    <div class="sect-title"><i class="bi bi-heart-pulse"></i> 健康档案 <small>用于开方时的安全校验</small></div>
+                    <div class="grid2">
+                        <div class="field">
+                            <label for="constitution">体质辨识</label>
+                            <select id="constitution" name="constitution">
+                                {% for code, label in constitution_choices %}
+                                <option value="{{ code }}" {% if form.constitution == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="pregnancy_status">孕产状态</label>
+                            <select id="pregnancy_status" name="pregnancy_status">
+                                {% for code, label in pregnancy_choices %}
+                                <option value="{{ code }}" {% if form.pregnancy_status == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="allergy_history">过敏史</label>
+                            <input type="text" id="allergy_history" name="allergy_history" value="{{ form.allergy_history|default:'' }}" placeholder="如 青霉素过敏；无则填「无」">
+                        </div>
+                        <div class="field">
+                            <label for="medical_history">既往病史</label>
+                            <input type="text" id="medical_history" name="medical_history" value="{{ form.medical_history|default:'' }}" placeholder="如 高血压 5 年">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 验证码 -->
+                <div class="sect">
+                    <div class="sect-title"><i class="bi bi-shield-check"></i> 安全校验</div>
+                    <div class="grid2">
+                        <div class="field">
+                            <label for="captcha">图形验证码 <span class="req">*</span></label>
+                            <div class="cap-row">
+                                <input type="text" id="captcha" name="captcha" placeholder="输入右侧字符" maxlength="6" required>
+                                <img class="cap-img" id="captchaImg" alt="点击刷新验证码" title="看不清？点击刷新">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit">提交注册</button>
+                <div class="foot-note">
+                    已有账号？<a href="{% url 'users:login' %}">去登录</a> ·
+                    提交即表示同意《系统使用与隐私说明》
+                </div>
+            </form>
         </div>
+    </main>
+</div>
 
-        <div class="role-note">
-            注册默认为「患者」角色，可查询本人处方<br>
-            医师、药师账号须由系统管理员分配
-        </div>
-    </div>
+<script>
+    (function () {
+        const img = document.getElementById('captchaImg');
+        const base = "{% url 'users:captcha' %}";
+        function refresh() { img.src = base + '?t=' + Date.now(); }
+        img.addEventListener('click', refresh);
+        refresh();
+
+        const blocks = document.querySelectorAll('[data-show]');
+        function syncRole() {
+            const checked = document.querySelector('input[name="apply_role"]:checked');
+            const role = checked ? checked.value : 'patient';
+            const group = role === 'patient' ? 'patient' : 'staff';
+            blocks.forEach(function (el) {
+                el.style.display = (el.dataset.show === group) ? '' : 'none';
+            });
+        }
+        document.querySelectorAll('input[name="apply_role"]').forEach(function (el) {
+            el.addEventListener('change', syncRole);
+        });
+        syncRole();
+    })();
+</script>
 </body>
 </html>

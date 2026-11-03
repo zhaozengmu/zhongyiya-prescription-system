@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}我的就诊 - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block page_name %}我的就诊{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>我的就诊</h1>
+        <p class="sub">病案号 {{ patient.record_no|default:patient.patient_no }} · 就诊记录、处方与病案材料都在这里</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-sm btn-brand" href="{% url 'clinic:appointment_create' %}"><i class="bi bi-calendar-plus"></i> 预约挂号</a>
+        <a class="btn btn-sm btn-outline-brand" href="{% url 'clinic:request_create' %}"><i class="bi bi-file-earmark-text"></i> 申请病历材料</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-1">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-person-vcard me-1"></i> 我的健康档案</div>
+            <div class="card-body" style="font-size:13px;">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span class="ava" style="width:44px;height:44px;font-size:17px;">{{ patient.name|slice:":1" }}</span>
+                    <div>
+                        <div style="font-size:16px;font-weight:600;">{{ patient.name }}</div>
+                        <div style="font-size:12px;color:var(--ink-500);">
+                            {{ patient.get_gender_display }} · {{ patient.age|default:"—" }} 岁 · {{ patient.get_constitution_display }}
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px dashed var(--line);">
+                    <span style="color:var(--ink-500);">病案号</span><span>{{ patient.record_no|default:patient.patient_no }}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="color:var(--ink-500);">过敏史</span>
+                    <span style="{% if patient.allergy_history %}color:var(--danger);font-weight:600;{% endif %}">
+                        {{ patient.allergy_history|default:"未记录" }}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="color:var(--ink-500);">既往病史</span>
+                    <span style="max-width:60%;text-align:right;">{{ patient.medical_history|default:"未记录" }}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:5px 0;">
+                    <span style="color:var(--ink-500);">最近就诊</span>
+                    <span>{{ patient.last_visit_at|date:"Y-m-d"|default:"—" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-calendar2-check me-1"></i> 最近挂号</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr><th>就诊日期</th><th>医师</th><th>时段</th><th>序号</th><th>状态</th><th>费用</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in registrations %}
+                        <tr>
+                            <td style="font-size:13px;">{{ reg.visit_date|date:"Y-m-d" }}</td>
+                            <td style="font-size:13px;">{{ reg.doctor }}<div style="font-size:11.5px;color:var(--ink-300);">{{ reg.doctor.department }}</div></td>
+                            <td style="font-size:12.5px;color:var(--ink-500);">{{ reg.time_slot }}</td>
+                            <td>{{ reg.queue_no }}</td>
+                            <td>
+                                {% if reg.status == 'WAITING' %}<span class="pill pill-amber">待就诊</span>
+                                {% elif reg.status == 'IN_PROGRESS' %}<span class="pill pill-blue">就诊中</span>
+                                {% elif reg.status == 'FINISHED' %}<span class="pill pill-green">已完成</span>
+                                {% else %}<span class="pill pill-gray">{{ reg.get_status_display }}</span>{% endif %}
+                            </td>
+                            <td style="font-size:12.5px;">
+                                {% if reg.pay_status == 'PAID' %}<span style="color:var(--ok);">已缴</span>
+                                {% else %}<span style="color:var(--danger);">未缴 ￥{{ reg.fee }}</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6"><div class="empty" style="padding:24px 0;">
+                            <i class="bi bi-calendar2-plus"></i><div>还没有挂号记录</div>
+                            <a class="btn btn-sm btn-brand mt-2" href="{% url 'clinic:appointment_create' %}">去预约</a>
+                        </div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-clipboard2-pulse me-1"></i> 就诊记录</div>
+            <div class="card-body">
+                {% for rec in records %}
+                <div style="padding:14px 0;border-bottom:1px dashed var(--line);">
+                    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                        <div>
+                            <div style="font-size:14px;font-weight:600;">
+                                {{ rec.created_at|date:"Y-m-d" }} · {{ rec.doctor }}
+                            </div>
+                            <div style="font-size:12.5px;color:var(--ink-500);margin-top:3px;">
+                                中医诊断：{{ rec.tcm_diagnosis|default:"—" }}
+                                {% if rec.syndrome %} · {{ rec.syndrome }}{% endif %}
+                            </div>
+                            <div style="font-size:12px;color:var(--ink-300);margin-top:2px;">
+                                {{ rec.doctor.department }} · 病历号 {{ rec.record_no }}
+                            </div>
+                        </div>
+                        <div class="d-flex gap-1 align-items-center">
+                            <span class="pill {% if rec.is_signed %}pill-green{% else %}pill-amber{% endif %}">{{ rec.get_status_display }}</span>
+                            <a class="btn-xs" href="{% url 'clinic:record_detail' rec.pk %}"><i class="bi bi-file-medical"></i> 病历</a>
+                            {% if rec.prescription %}
+                            <a class="btn-xs primary" href="{% url 'prescriptions:prescription_detail' rec.prescription.pk %}">
+                                <i class="bi bi-journal-medical"></i> 处方
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty"><i class="bi bi-journal-x"></i><div>暂无就诊记录</div></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% include "_pagination.html" %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-folder2-open me-1"></i> 病案服务申请
+                <a class="ms-auto" href="{% url 'clinic:request_list' %}" style="font-size:12px;font-weight:400;">全部</a>
+            </div>
+            <div class="card-body">
+                {% for req in requests %}
+                <div style="padding:9px 0;border-bottom:1px dashed var(--line);">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <a href="{% url 'clinic:request_detail' req.pk %}" style="font-size:13px;font-weight:600;color:var(--brand-800);">
+                            {{ req.get_request_type_display }}
+                        </a>
+                        <span class="pill {{ req.status_tone }}">{{ req.get_status_display }}</span>
+                    </div>
+                    <div style="font-size:11.5px;color:var(--ink-300);">{{ req.created_at|date:"m-d H:i" }} · {{ req.request_no }}</div>
+                </div>
+                {% empty %}
+                <div class="empty" style="padding:18px 0;">
+                    <i class="bi bi-file-earmark-plus"></i>
+                    <div style="font-size:12.5px;">可在线申请病历复印件、诊断证明</div>
+                </div>
+                {% endfor %}
+                <a class="btn btn-sm btn-outline-brand w-100 mt-2" href="{% url 'clinic:request_create' %}">发起新申请</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

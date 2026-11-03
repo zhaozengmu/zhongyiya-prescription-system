@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}挂号与接诊 - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block page_name %}挂号与接诊{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>挂号与接诊</h1>
+        <p class="sub">号源状态：待就诊 → 就诊中 → 已完成；取消与爽约不占用当日队列</p>
+    </div>
+    <div class="page-actions">
+        {% if can_create %}
+        <a class="btn btn-sm btn-brand" href="{% url 'clinic:registration_create' %}"><i class="bi bi-plus-lg"></i> 办理挂号</a>
+        {% endif %}
+    </div>
+</div>
+
+<form class="filter-bar" method="get">
+    <div class="row g-2 align-items-end">
+        <div class="col-6 col-md-2">
+            <label class="form-label">就诊日期</label>
+            <input type="date" name="date" class="form-control form-control-sm" value="{{ visit_date|date:'Y-m-d' }}">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label">状态</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="">全部状态</option>
+                {% for code, label in status_choices %}
+                <option value="{{ code }}" {% if status == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label">患者姓名 / 挂号单号</label>
+            <input type="text" name="name" class="form-control form-control-sm" value="{{ name }}" placeholder="输入关键字">
+        </div>
+        <div class="col-12 col-md-2">
+            <button class="btn btn-sm btn-outline-brand w-100" type="submit"><i class="bi bi-search"></i> 查询</button>
+        </div>
+        <div class="col-12 col-md-3 text-md-end">
+            <a class="btn btn-sm btn-ghost" href="{% url 'clinic:registration_list' %}?date=all">查看全部日期</a>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>挂号单号</th>
+                    <th>患者</th>
+                    <th>医师</th>
+                    <th>号别 / 时段</th>
+                    <th style="width:70px;">序号</th>
+                    <th>状态</th>
+                    <th>缴费</th>
+                    <th style="width:180px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reg in registrations %}
+                <tr>
+                    <td>
+                        <div style="font-family:ui-monospace,monospace;font-size:12.5px;">{{ reg.reg_no }}</div>
+                        <div style="font-size:11.5px;color:var(--ink-300);">{{ reg.visit_date|date:"Y-m-d" }}</div>
+                    </td>
+                    <td>
+                        <a href="{% url 'patients:patient_detail' reg.patient.pk %}" style="font-weight:600;color:var(--ink-900);">
+                            {{ reg.patient.name }}
+                        </a>
+                        <div style="font-size:11.5px;color:var(--ink-300);">{{ reg.patient.get_gender_display }} · {{ reg.patient.age|default:"—" }} 岁</div>
+                    </td>
+                    <td style="font-size:13px;">
+                        {{ reg.doctor }}
+                        <div style="font-size:11.5px;color:var(--ink-300);">{{ reg.doctor.department }}</div>
+                    </td>
+                    <td style="font-size:12.5px;">
+                        {{ reg.get_reg_type_display }}
+                        <div style="font-size:11.5px;color:var(--ink-300);">{{ reg.time_slot }}</div>
+                    </td>
+                    <td><span class="queue-no" style="width:26px;height:26px;font-size:12px;">{{ reg.queue_no }}</span></td>
+                    <td>
+                        {% if reg.status == 'WAITING' %}<span class="pill pill-amber">待就诊</span>
+                        {% elif reg.status == 'IN_PROGRESS' %}<span class="pill pill-blue">就诊中</span>
+                        {% elif reg.status == 'FINISHED' %}<span class="pill pill-green">已完成</span>
+                        {% else %}<span class="pill pill-gray">{{ reg.get_status_display }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if reg.pay_status == 'PAID' %}<span class="pill pill-green">已缴</span>
+                        {% else %}<span class="pill pill-red">未缴 ￥{{ reg.fee }}</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="act-row">
+                            {% if reg.status == 'WAITING' or reg.status == 'IN_PROGRESS' %}
+                                {% if '接诊:写' in user_perms %}
+                                <form method="post" action="{% url 'clinic:registration_call' reg.pk %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button class="btn-xs primary" type="submit"><i class="bi bi-mic"></i> 接诊</button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                            {% if reg.medical_record %}
+                            <a class="btn-xs" href="{% url 'clinic:record_detail' reg.medical_record.pk %}"><i class="bi bi-file-medical"></i> 病历</a>
+                            {% endif %}
+                            {% if '收费:确认' in user_perms and reg.pay_status == 'UNPAID' %}
+                            <form method="post" action="{% url 'clinic:registration_pay' reg.pk %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button class="btn-xs" type="submit"><i class="bi bi-cash"></i> 收费</button>
+                            </form>
+                            {% endif %}
+                            {% if reg.status != 'FINISHED' and reg.status != 'CANCELLED' %}
+                            <form method="post" action="{% url 'clinic:registration_cancel' reg.pk %}" style="display:inline;"
+                                  onsubmit="return confirm('确认取消该挂号？');">
+                                {% csrf_token %}
+                                <button class="btn-xs danger" type="submit"><i class="bi bi-x"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8"><div class="empty"><i class="bi bi-calendar-x"></i><div>该条件下没有挂号记录</div></div></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% include "_pagination.html" %}
+{% endblock %}

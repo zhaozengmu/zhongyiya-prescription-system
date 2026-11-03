@@ -63,6 +63,18 @@
         <div class="value">{{ rejected }}</div>
         <div class="foot">需医师修改后重新提交</div>
     </div>
+
+    <div class="metric is-info">
+        <div class="label"><i class="bi bi-calendar2-check"></i> 今日门诊</div>
+        <div class="value">{{ clinic.today_total }}</div>
+        <div class="foot">已完成 {{ clinic.today_finished }} · 待就诊 {{ clinic.today_waiting }}</div>
+    </div>
+
+    <div class="metric is-wood">
+        <div class="label"><i class="bi bi-folder2-open"></i> 病案申请</div>
+        <div class="value">{{ clinic.pending_requests }}</div>
+        <div class="foot">待受理（今日病历 {{ clinic.signed_records }} 份）</div>
+    </div>
 </div>
 
 <div class="row g-3">

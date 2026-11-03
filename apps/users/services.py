@@ -60,17 +60,28 @@ def resolve_landing_url_name(user) -> str:
     """按角色权限决定登录后的落地页，避免"登录即无权限"的死角。"""
     from apps.users.permissions import get_user_permissions
 
-    perms = get_user_permissions(user)
-    if "统计:读" in perms:
+    # 医护/窗口岗位注册后尚未审核，先落到状态页，避免看到空菜单
+    if getattr(user, "apply_status", "NONE") == "PENDING":
+        return "users:pending"
+
+    if user.is_superuser or user.is_staff:
         return "stats:dashboard"
+
+    perms = get_user_permissions(user)
+    if "接诊:读" in perms:
+        return "clinic:workbench"
     if "审核:读" in perms:
         return "reviews:workbench"
     if "发药:确认" in perms:
         return "prescriptions:dispense_queue"
     if "收费:确认" in perms:
         return "prescriptions:payment_queue"
+    if "统计:读" in perms:
+        return "stats:dashboard"
     if "处方:新增" in perms:
         return "prescriptions:prescription_list"
+    if "我的就诊:读" in perms:
+        return "clinic:my_visits"
     if "患者:读" in perms:
         return "patients:patient_list"
     if "我的处方:读" in perms:

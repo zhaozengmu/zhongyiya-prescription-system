@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}办理挂号 - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block crumb %}<a href="{% url 'clinic:registration_list' %}">挂号与接诊</a> / <b>办理挂号</b>{% endblock %}
+{% block page_name %}办理挂号{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>办理挂号</h1>
+        <p class="sub">窗口挂号与医师加号共用此入口，号序按医师当日顺延自动生成</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-sm btn-ghost" href="{% url 'clinic:registration_list' %}"><i class="bi bi-arrow-left"></i> 返回列表</a>
+    </div>
+</div>
+
+<form method="post" class="row g-3">
+    {% csrf_token %}
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="form-sect-title"><i class="bi bi-person-plus"></i> 号源信息</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="patient">患者 <span style="color:#c0392b">*</span></label>
+                        <select class="form-select" id="patient" name="patient_id" required>
+                            <option value="">请选择已建档患者</option>
+                            {% for p in patients %}
+                            <option value="{{ p.id }}">{{ p.name }} · {{ p.patient_no }}{% if p.phone_encrypted %} · 已留电话{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">未建档患者请先在「患者档案」中新建</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="doctor">接诊医师 <span style="color:#c0392b">*</span></label>
+                        <select class="form-select" id="doctor" name="doctor_id" required>
+                            <option value="">请选择医师</option>
+                            {% for d in doctors %}
+                            <option value="{{ d.pk }}" {% if default_doctor and default_doctor.pk == d.pk %}selected{% endif %}>
+                                {{ d }} · {{ d.department }}{% if d.title %} · {{ d.title }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="visitDate">就诊日期</label>
+                        <input type="date" class="form-control" id="visitDate" name="visit_date" value="{{ today|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="regType">号别</label>
+                        <select class="form-select" id="regType" name="reg_type">
+                            <option value="NORMAL">普通门诊（￥20）</option>
+                            <option value="EXPERT">专家门诊（￥50）</option>
+                            <option value="FOLLOWUP">复诊（￥15）</option>
+                            <option value="EMERGENCY">急诊（￥30）</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="timeSlot">就诊时段</label>
+                        <select class="form-select" id="timeSlot" name="time_slot">
+                            {% for slot in time_slots %}
+                            <option value="{{ slot }}">{{ slot }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="complaint">就诊原因 / 主诉</label>
+                        <input type="text" class="form-control" id="complaint" name="chief_complaint" maxlength="200"
+                               placeholder="如：反复胃脘胀痛 2 周">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-brand"><i class="bi bi-check2"></i> 确认挂号</button>
+            <a class="btn btn-ghost" href="{% url 'clinic:registration_list' %}">取消</a>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="form-sect-title"><i class="bi bi-info-circle"></i> 挂号规则</div>
+                <ul style="list-style:none;font-size:12.5px;color:var(--ink-500);line-height:1.9;">
+                    <li>· 同一医师同日号序自动顺延，不重复占用</li>
+                    <li>· 医师加号会记录操作人，便于号源审计</li>
+                    <li>· 挂号费由收费窗口确认，未缴费不影响接诊</li>
+                    <li>· 已完成就诊的号源不可取消</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

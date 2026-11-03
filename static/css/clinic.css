@@ -1,0 +1,196 @@
+/* ==========================================================================
+   门诊接诊 / 电子病历 / 病案服务 组件样式
+   仅补充 app.css 未覆盖的组件，颜色沿用全局变量
+   ========================================================================== */
+
+/* ---------- 顶部信息条 ---------- */
+.info-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 22px;
+    background: var(--brand-50);
+    border: 1px solid #dcebe2;
+    border-radius: var(--radius);
+    padding: 13px 16px;
+    font-size: 13px;
+    color: var(--ink-700);
+    margin-bottom: 18px;
+}
+.info-strip .who { font-weight: 600; color: var(--ink-900); font-size: 14px; }
+.info-strip .sep { width: 1px; height: 16px; background: #cfe3d8; }
+.info-strip .danger-text { color: var(--danger); font-weight: 500; }
+
+/* ---------- 日期切换 ---------- */
+.date-nav { display: flex; align-items: center; gap: 8px; }
+.date-nav .cur {
+    font-weight: 600;
+    font-size: 14px;
+    padding: 6px 12px;
+    background: var(--brand-50);
+    border: 1px solid #dcebe2;
+    border-radius: 8px;
+    min-width: 118px;
+    text-align: center;
+}
+
+/* ---------- 队列序号 ---------- */
+.queue-no {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: var(--brand-50);
+    color: var(--brand-700);
+    font-weight: 700;
+    font-size: 13px;
+    border: 1px solid #dcebe2;
+}
+tr.is-active .queue-no { background: var(--brand-600); color: #fff; border-color: var(--brand-600); }
+
+/* ---------- 病历纸 ---------- */
+.paper {
+    background: #fffefb;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 26px 28px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+}
+.paper-head {
+    text-align: center;
+    border-bottom: 2px solid var(--brand-800);
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+}
+.paper-head h2 { font-size: 19px; letter-spacing: 3px; font-weight: 600; margin: 0 0 4px; }
+.paper-head .sub { font-size: 11.5px; color: var(--ink-500); letter-spacing: 1px; }
+.paper-meta {
+    display: flex; flex-wrap: wrap; gap: 6px 26px;
+    font-size: 13px; color: var(--ink-700); padding-bottom: 14px;
+    border-bottom: 1px dashed var(--line-strong); margin-bottom: 16px;
+}
+.paper-meta b { font-weight: 600; color: var(--ink-900); }
+.paper-section { margin-bottom: 16px; }
+.paper-section h3 {
+    font-size: 13.5px; font-weight: 700; color: var(--brand-800);
+    display: flex; align-items: center; gap: 7px; margin: 0 0 7px;
+}
+.paper-section h3::before {
+    content: ""; width: 3px; height: 14px; background: var(--brand-500); border-radius: 2px;
+}
+.paper-text {
+    font-size: 13.5px; color: var(--ink-900); line-height: 1.95;
+    white-space: pre-wrap; word-break: break-word;
+    background-image: repeating-linear-gradient(transparent, transparent 26px, #eeeae0 26px, #eeeae0 27px);
+    min-height: 28px;
+}
+.paper-text.muted { color: var(--ink-300); }
+.dx-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 24px; }
+.dx-item { font-size: 13.5px; }
+.dx-item .k { color: var(--ink-500); font-size: 12.5px; margin-right: 6px; }
+.dx-item .v { font-weight: 600; color: var(--ink-900); }
+.vital-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.vital {
+    background: var(--brand-50); border: 1px solid #dcebe2; border-radius: 9px;
+    padding: 9px 12px;
+}
+.vital .k { font-size: 11.5px; color: var(--ink-500); }
+.vital .v { font-size: 15px; font-weight: 600; color: var(--brand-800); font-variant-numeric: tabular-nums; }
+.paper-sign {
+    display: flex; justify-content: flex-end; gap: 40px; margin-top: 22px;
+    padding-top: 14px; border-top: 1px dashed var(--line-strong); font-size: 13px; color: var(--ink-700);
+}
+.sign-stamp {
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--brand-600); color: var(--brand-700);
+    border-radius: 8px; padding: 3px 10px; font-size: 11.5px; transform: rotate(-4deg);
+}
+
+/* ---------- 接诊操作 ---------- */
+.act-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-xs {
+    height: 28px; padding: 0 10px; font-size: 12px; border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line-strong);
+    background: #fff; color: var(--ink-700); cursor: pointer; text-decoration: none;
+}
+.btn-xs:hover { border-color: var(--brand-500); color: var(--brand-700); }
+.btn-xs.primary { background: var(--brand-700); border-color: var(--brand-700); color: #fff; }
+.btn-xs.primary:hover { background: var(--brand-900); color: #fff; }
+.btn-xs.danger { color: var(--danger); border-color: #ecc9c4; }
+.btn-xs.danger:hover { background: var(--danger-bg); }
+
+/* ---------- 表单栅格 ---------- */
+.form-sect { margin-bottom: 22px; }
+.form-sect-title {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 700; color: var(--brand-800);
+    padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 14px;
+}
+.form-sect-title small { font-weight: 400; color: var(--ink-300); font-size: 11.5px; }
+.form-sect-title i { color: var(--brand-500); }
+.form-control, .form-select { font-size: 13.5px; }
+.form-label { font-size: 12.5px; font-weight: 600; color: var(--ink-700); margin-bottom: 4px; }
+.form-text { font-size: 11.5px; }
+textarea.form-control { line-height: 1.7; }
+
+/* ---------- 时间线 ---------- */
+.timeline { position: relative; padding-left: 18px; }
+.timeline::before {
+    content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px;
+    width: 2px; background: var(--line);
+}
+.tl-item { position: relative; padding-bottom: 16px; }
+.tl-item::before {
+    content: ""; position: absolute; left: -17px; top: 5px;
+    width: 9px; height: 9px; border-radius: 50%; background: #fff;
+    border: 2px solid var(--brand-500);
+}
+.tl-item .t { font-size: 12px; color: var(--ink-300); }
+.tl-item .h { font-size: 13.5px; font-weight: 600; }
+.tl-item .d { font-size: 12.5px; color: var(--ink-500); }
+
+/* ---------- 选择卡片（医生/时段） ---------- */
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-radio { position: relative; }
+.chip-radio input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-radio span {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 14px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--line-strong); background: #fff;
+    font-size: 13px; color: var(--ink-700); transition: .15s;
+}
+.chip-radio input:checked + span {
+    border-color: var(--brand-500); background: var(--brand-50);
+    color: var(--brand-800); font-weight: 600;
+}
+.doctor-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.doctor-card {
+    position: relative; border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px; background: #fff; cursor: pointer; transition: .16s;
+}
+.doctor-card:has(input:checked) {
+    border-color: var(--brand-500); background: var(--brand-50);
+    box-shadow: 0 0 0 2px rgba(47, 138, 102, .12);
+}
+.doctor-card input { position: absolute; opacity: 0; }
+.doctor-card .nm { font-size: 14px; font-weight: 600; }
+.doctor-card .meta { font-size: 12px; color: var(--ink-500); margin-top: 3px; }
+.doctor-card .fee { position: absolute; right: 12px; top: 13px; font-size: 12px; color: var(--wood-600); font-weight: 600; }
+
+/* ---------- 申请状态色 ---------- */
+.pill.amber { background: var(--warn-bg); color: var(--warn); }
+.pill.blue { background: var(--info-bg); color: var(--info); }
+.pill.green { background: var(--ok-bg); color: var(--ok); }
+.pill.red { background: var(--danger-bg); color: var(--danger); }
+.pill.gray { background: #f1f0ec; color: var(--ink-500); }
+
+/* ---------- 移动端 ---------- */
+@media (max-width: 768px) {
+    .paper { padding: 18px 15px; }
+    .dx-grid, .vital-grid { grid-template-columns: repeat(2, 1fr); }
+    .info-strip { font-size: 12.5px; gap: 6px 14px; }
+    .paper-sign { flex-direction: column; gap: 8px; align-items: flex-end; }
+    .date-nav { width: 100%; justify-content: space-between; }
+}

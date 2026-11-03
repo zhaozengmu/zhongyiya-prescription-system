@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}预约挂号 - TCM-RMS{% endblock %}
+{% block extra_css %}<link href="{% static 'css/clinic.css' %}" rel="stylesheet">{% endblock %}
+{% block crumb %}<a href="{% url 'clinic:my_visits' %}">我的就诊</a> / <b>预约挂号</b>{% endblock %}
+{% block page_name %}预约挂号{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>预约挂号</h1>
+        <p class="sub">{{ patient.name }} · 病案号 {{ patient.record_no|default:patient.patient_no }} · 预约成功后请按时段到诊室候诊</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-sm btn-ghost" href="{% url 'clinic:my_visits' %}"><i class="bi bi-arrow-left"></i> 返回</a>
+    </div>
+</div>
+
+<form method="post" class="row g-3">
+    {% csrf_token %}
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="form-sect-title"><i class="bi bi-person-badge"></i> 选择医师</div>
+                <div class="doctor-list">
+                    {% for d in doctors %}
+                    <label class="doctor-card">
+                        <input type="radio" name="doctor_id" value="{{ d.pk }}" {% if forloop.first %}checked{% endif %} required>
+                        <div class="nm">{{ d }}</div>
+                        <div class="meta">{{ d.department }}{% if d.title %} · {{ d.title }}{% endif %}</div>
+                        <div class="meta">执业证号 {{ d.license_no|default:"—" }}</div>
+                        <span class="fee">￥20 起</span>
+                    </label>
+                    {% empty %}
+                    <div class="empty"><i class="bi bi-person-x"></i><div>暂无可预约医师</div></div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="form-sect-title"><i class="bi bi-calendar3"></i> 就诊时间</div>
+                <label class="form-label">就诊日期</label>
+                <div class="chip-group mb-3">
+                    {% for day in days %}
+                    <label class="chip-radio">
+                        <input type="radio" name="visit_date" value="{{ day|date:'Y-m-d' }}" {% if forloop.first %}checked{% endif %}>
+                        <span>
+                            {{ day|date:"m-d" }}
+                            <small style="color:var(--ink-300);">
+                                {% if forloop.first %}今天{% else %}{{ day|date:"D" }}{% endif %}
+                            </small>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <label class="form-label">就诊时段</label>
+                <div class="chip-group mb-3">
+                    {% for slot in time_slots %}
+                    <label class="chip-radio">
+                        <input type="radio" name="time_slot" value="{{ slot }}" {% if forloop.first %}checked{% endif %}>
+                        <span>{{ slot }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label" for="regType">号别</label>
+                        <select class="form-select" id="regType" name="reg_type">
+                            <option value="NORMAL">普通门诊（￥20）</option>
+                            <option value="EXPERT">专家门诊（￥50）</option>
+                            <option value="FOLLOWUP">复诊（￥15）</option>
+                        </select>
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label" for="complaint">就诊原因</label>
+                        <input type="text" class="form-control" id="complaint" name="chief_complaint" maxlength="200"
+                               placeholder="简要描述主要不适，便于医师提前了解">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-brand"><i class="bi bi-check2-circle"></i> 确认预约</button>
+            <a class="btn btn-ghost" href="{% url 'clinic:my_visits' %}">取消</a>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-info-circle me-1"></i> 预约须知</div>
+            <div class="card-body" style="font-size:12.5px;color:var(--ink-500);line-height:1.95;">
+                <div>· 每日 14 天内号源可在线预约，先约先得</div>
+                <div>· 同一医师同一天不可重复预约</div>
+                <div>· 挂号费到院后至收费窗口缴纳</div>
+                <div>· 就诊当天请提前 15 分钟到诊室候诊</div>
+                <div>· 如需取消，请在「我的就诊」中操作</div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body" style="font-size:12.5px;">
+                <div class="form-sect-title" style="margin-bottom:10px;"><i class="bi bi-person-heart"></i> 就诊人</div>
+                <div style="font-weight:600;font-size:14px;">{{ patient.name }}</div>
+                <div style="color:var(--ink-500);">{{ patient.get_gender_display }} · {{ patient.age|default:"—" }} 岁</div>
+                <div style="color:var(--ink-500);margin-top:4px;">过敏史：{{ patient.allergy_history|default:"未记录" }}</div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
