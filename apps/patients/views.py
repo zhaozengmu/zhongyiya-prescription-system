@@ -2,7 +2,7 @@
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.users.permissions import deny, get_client_ip, has_permission, parse_json_body
@@ -59,6 +59,9 @@ def patient_list(request):
         # 只有真正能开方的账号（医师档案 + 处方:新增）才显示"开方"入口
         "can_create_presc": bool(getattr(request.user, "doctor", None))
         and has_permission(request.user, "处方:新增"),
+        # 编辑 / 删除按钮按权限渲染（患者信息管理子功能②）
+        "can_edit_patient": has_permission(request.user, "患者:修改"),
+        "can_delete_patient": has_permission(request.user, "患者:删除"),
     })
 
 
@@ -81,7 +84,100 @@ def patient_detail(request, pk):
 
     return render(request, "patients/patient_detail.html", {
         "patient": patient, "can_view_sensitive": can_view_sensitive,
+        "can_edit_patient": has_permission(request.user, "患者:修改"),
+        "can_delete_patient": has_permission(request.user, "患者:删除"),
     })
+
+
+def _log_patient_action(request, action_type, patient, detail):
+    """患者操作统一留痕（写 D6 操作日志）。"""
+    from apps.stats.models import OperationLog
+
+    OperationLog.objects.create(
+        operator=request.user, action_type=action_type, object_type="patient",
+        object_id=str(patient.id), detail=detail,
+        ip=get_client_ip(request), result="success",
+    )
+
+
+@login_required
+def patient_edit(request, pk):
+    """患者信息编辑：GET 渲染表单（敏感字段解密回填），POST 保存修改。
+
+    对应患者信息管理子功能②「编辑」，保存前后均写操作日志。
+    """
+    if not has_permission(request.user, "患者:修改"):
+        return deny(request, perm_code="患者:修改")
+
+    patient = get_object_or_404(Patient, pk=pk, is_deleted=False)
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        if not name:
+            return render(request, "patients/patient_form.html", {
+                "patient": patient, "error": "姓名必填",
+            }, status=400)
+
+        age = _safe_int(request.POST.get("age"))
+        if age is not None and (age < 0 or age > 150):
+            return render(request, "patients/patient_form.html", {
+                "patient": patient, "error": "年龄应在 0~150 之间",
+            }, status=400)
+
+        id_card = request.POST.get("id_card", "").strip()
+        phone = request.POST.get("phone", "").strip()
+
+        # 身份证变更时查重（哈希列等值查询，排除本人）
+        if id_card:
+            id_hash = hash_value(id_card)
+            exists = Patient.objects.filter(id_card_hash=id_hash, is_deleted=False).exclude(pk=patient.pk).exists()
+            if exists:
+                return render(request, "patients/patient_form.html", {
+                    "patient": patient, "error": "该身份证号已建档",
+                }, status=409)
+
+        old_name = patient.name
+        patient.name = name
+        patient.gender = request.POST.get("gender", patient.gender)
+        patient.age = age
+        if id_card:
+            patient.id_card_encrypted = encrypt(id_card)
+            patient.id_card_hash = hash_value(id_card)
+        if phone:
+            patient.phone_encrypted = encrypt(phone)
+            patient.phone_hash = hash_value(phone)
+        patient.allergy_history = request.POST.get("allergy_history", "").strip()
+        patient.medical_history = request.POST.get("medical_history", "").strip()
+        patient.constitution = request.POST.get("constitution", patient.constitution)
+        patient.pregnancy_status = request.POST.get("pregnancy_status", patient.pregnancy_status)
+        patient.visit_summary = request.POST.get("visit_summary", "").strip()
+        patient.save()
+
+        _log_patient_action(request, "UPDATE", patient, f"编辑患者档案（{old_name} → {patient.name}）")
+        return redirect("patients:patient_detail", pk=patient.pk)
+
+    # GET：解密回填敏感字段
+    patient.id_card = decrypt(patient.id_card_encrypted) if patient.id_card_encrypted else ""
+    patient.phone = decrypt(patient.phone_encrypted) if patient.phone_encrypted else ""
+    return render(request, "patients/patient_form.html", {"patient": patient})
+
+
+@login_required
+@require_POST
+def patient_delete(request, pk):
+    """患者逻辑删除：不物理删除，保证历史处方可追溯。
+
+    对应患者信息管理子功能②「删除」，删除动作写操作日志。
+    """
+    if not has_permission(request.user, "患者:删除"):
+        return deny(request, perm_code="患者:删除")
+
+    patient = get_object_or_404(Patient, pk=pk, is_deleted=False)
+    patient.is_deleted = True
+    patient.save(update_fields=["is_deleted"])
+
+    _log_patient_action(request, "DELETE", patient, f"逻辑删除患者档案 {patient.name}（编号 {patient.patient_no}）")
+    return redirect("patients:patient_list")
 
 
 @require_GET

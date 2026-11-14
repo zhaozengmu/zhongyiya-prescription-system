@@ -30,6 +30,7 @@ NAV_GROUPS = [
     ]),
     ("系统", [
         ("application_list", "注册审核", "users:application_list", "bi-person-check", "用户:审核"),
+        ("role_permissions", "角色权限配置", "users:role_permissions", "bi-shield-lock", "权限:配置"),
         ("logs", "操作日志", "stats:logs", "bi-list-check", "日志:读"),
     ]),
 ]

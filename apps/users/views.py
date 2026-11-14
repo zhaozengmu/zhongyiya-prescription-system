@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -19,8 +20,10 @@ from apps.users.models import (
     APPLY_ROLE_CHOICES,
     APPLY_STATUS_CHOICES,
     Doctor,
+    Permission,
     Pharmacist,
     Role,
+    RolePermission,
     User,
     UserRole,
 )
@@ -458,3 +461,94 @@ def api_doctors(request):
         .values("id", "user__username", "user__first_name", "license_no", "department", "title")
     )
     return JsonResponse({"code": 200, "message": "ok", "data": doctors})
+
+
+@login_required
+def role_permission_manage(request):
+    """角色、菜单与接口访问权限配置页（RBAC 管理界面）。
+
+    对应用户与医师管理子功能③：以角色为单位勾选权限，权限点按
+    菜单/操作/接口三层分组展示，保存时计算增减差异并写操作日志留痕。
+    """
+    if not has_permission(request.user, "权限:配置"):
+        return deny(request, perm_code="权限:配置")
+
+    roles = Role.objects.all().order_by("id")
+    all_perms = Permission.objects.all().order_by("level", "id")
+
+    # 当前编辑的角色：?role=<id>，默认取第一个角色
+    roles_map = {r.id: r for r in roles}
+    role_id = None
+    try:
+        role_id = int(request.GET.get("role") or request.POST.get("role") or 0)
+    except (TypeError, ValueError):
+        role_id = 0
+    current_role = roles_map.get(role_id) or (roles[0] if roles else None)
+
+    if request.method == "POST" and current_role:
+        selected = set()
+        for key in request.POST.getlist("perms"):
+            try:
+                selected.add(int(key))
+            except (TypeError, ValueError):
+                continue
+
+        valid_perm_ids = set(all_perms.values_list("id", flat=True))
+        selected &= valid_perm_ids
+
+        old_ids = set(RolePermission.objects.filter(role=current_role).values_list("permission_id", flat=True))
+        added = selected - old_ids
+        removed = old_ids - selected
+
+        if added or removed or request.POST.get("force_save"):
+            with transaction.atomic():
+                if added:
+                    RolePermission.objects.bulk_create(
+                        [RolePermission(role=current_role, permission_id=pid) for pid in added]
+                    )
+                if removed:
+                    RolePermission.objects.filter(role=current_role, permission_id__in=removed).delete()
+
+                added_names = list(Permission.objects.filter(id__in=added).values_list("code", flat=True))
+                removed_names = list(Permission.objects.filter(id__in=removed).values_list("code", flat=True))
+                from apps.stats.models import OperationLog
+
+                OperationLog.objects.create(
+                    operator=request.user, action_type="UPDATE", object_type="role_permission",
+                    object_id=str(current_role.id),
+                    detail=f"调整角色「{current_role.name}」权限：新增 {added_names or '无'}；移除 {removed_names or '无'}",
+                    ip=get_client_ip(request), result="success",
+                )
+                messages.success(
+                    request,
+                    f"角色「{current_role.name}」权限已保存：新增 {len(added)} 项，移除 {len(removed)} 项，变更已留痕。",
+                )
+        else:
+            messages.info(request, "权限未发生变化。")
+        return redirect(f"{reverse('users:role_permissions')}?role={current_role.id}")
+
+    # 权限按层级分组渲染；勾选当前角色已有权限
+    granted = set()
+    if current_role:
+        granted = set(RolePermission.objects.filter(role=current_role).values_list("permission_id", flat=True))
+    perm_groups = []
+    for level, label in Permission.LEVEL_CHOICES:
+        perms = [p for p in all_perms if p.level == level]
+        if perms:
+            perm_groups.append({
+                "level": level,
+                "label": label,
+                "items": [{"obj": p, "checked": p.id in granted} for p in perms],
+            })
+
+    role_stats = {
+        r.id: RolePermission.objects.filter(role=r).count() for r in roles
+    }
+    for r in roles:
+        r.perm_count = role_stats[r.id]
+    return render(request, "users/role_permissions.html", {
+        "roles": roles,
+        "role_stats": role_stats,
+        "current_role": current_role,
+        "perm_groups": perm_groups,
+    })

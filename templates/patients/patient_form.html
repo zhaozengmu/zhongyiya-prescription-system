@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}编辑患者 - TCM-RMS{% endblock %}
+{% block crumb %}<span>档案与字典</span> / <a href="{% url 'patients:patient_list' %}">患者档案</a> / <b>编辑</b>{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>编辑患者档案</h1>
+        <p class="sub">患者编号 {{ patient.patient_no }} · 身份证号与联系电话加密存储，可留空表示不修改</p>
+    </div>
+</div>
+
+<div class="card p-4 col-lg-8">
+    {% if error %}
+    <div class="alert alert-danger py-2">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">姓名 <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" value="{{ patient.name }}" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">性别</label>
+                <select name="gender" class="form-select">
+                    <option value="M" {% if patient.gender == 'M' %}selected{% endif %}>男</option>
+                    <option value="F" {% if patient.gender == 'F' %}selected{% endif %}>女</option>
+                    <option value="U" {% if patient.gender == 'U' %}selected{% endif %}>未知</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">年龄</label>
+                <input type="number" name="age" min="0" max="150" class="form-control" value="{{ patient.age|default:'' }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">身份证号</label>
+                <input type="text" name="id_card" class="form-control" value="{{ patient.id_card|default:'' }}" maxlength="18" placeholder="留空表示不修改">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">联系电话</label>
+                <input type="text" name="phone" class="form-control" value="{{ patient.phone|default:'' }}" maxlength="11" placeholder="留空表示不修改">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">体质辨识</label>
+                <select name="constitution" class="form-select">
+                    <option value="BALANCED" {% if patient.constitution == 'BALANCED' %}selected{% endif %}>平和质</option>
+                    <option value="QI_DEFICIENCY" {% if patient.constitution == 'QI_DEFICIENCY' %}selected{% endif %}>气虚质</option>
+                    <option value="YANG_DEFICIENCY" {% if patient.constitution == 'YANG_DEFICIENCY' %}selected{% endif %}>阳虚质</option>
+                    <option value="YIN_DEFICIENCY" {% if patient.constitution == 'YIN_DEFICIENCY' %}selected{% endif %}>阴虚质</option>
+                    <option value="DAMP_HEAT" {% if patient.constitution == 'DAMP_HEAT' %}selected{% endif %}>湿热质</option>
+                    <option value="BLOOD_STASIS" {% if patient.constitution == 'BLOOD_STASIS' %}selected{% endif %}>血瘀质</option>
+                    <option value="QI_STAGNATION" {% if patient.constitution == 'QI_STAGNATION' %}selected{% endif %}>气郁质</option>
+                    <option value="PHLEGM_DAMP" {% if patient.constitution == 'PHLEGM_DAMP' %}selected{% endif %}>痰湿质</option>
+                    <option value="SPECIAL" {% if patient.constitution == 'SPECIAL' %}selected{% endif %}>特禀质</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">孕产状态</label>
+                <select name="pregnancy_status" class="form-select">
+                    <option value="NONE" {% if patient.pregnancy_status == 'NONE' %}selected{% endif %}>无</option>
+                    <option value="PREGNANT" {% if patient.pregnancy_status == 'PREGNANT' %}selected{% endif %}>孕期</option>
+                    <option value="POSTPARTUM" {% if patient.pregnancy_status == 'POSTPARTUM' %}selected{% endif %}>产后</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label">过敏史</label>
+                <textarea name="allergy_history" class="form-control" rows="2">{{ patient.allergy_history }}</textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label">既往病史</label>
+                <textarea name="medical_history" class="form-control" rows="2">{{ patient.medical_history }}</textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label">既往就诊摘要</label>
+                <textarea name="visit_summary" class="form-control" rows="3">{{ patient.visit_summary }}</textarea>
+            </div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-brand">保存修改</button>
+            <a href="{% url 'patients:patient_detail' patient.pk %}" class="btn btn-ghost">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

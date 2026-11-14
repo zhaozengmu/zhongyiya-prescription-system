@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}角色权限配置 - TCM-RMS{% endblock %}
+{% block crumb %}<span>系统</span> / <b>角色权限配置</b>{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>角色与权限配置</h1>
+        <p class="sub">以角色为单位勾选权限，覆盖菜单、操作、接口三级；变更全程写操作日志留痕</p>
+    </div>
+</div>
+
+<div class="card p-4">
+    <div class="mb-3 d-flex flex-wrap gap-2">
+        {% for r in roles %}
+        <a class="btn btn-sm {% if current_role and r.pk == current_role.pk %}btn-brand{% else %}btn-ghost{% endif %}"
+           href="?role={{ r.pk }}">
+            {{ r.name }} <span class="badge text-bg-light ms-1">{{ r.perm_count }} 项权限</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'info' %}alert-info{% else %}alert-warning{% endif %} py-2">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+
+    {% if current_role %}
+    <form method="post" action="?role={{ current_role.pk }}">
+        {% csrf_token %}
+        <input type="hidden" name="role" value="{{ current_role.pk }}">
+        <div class="row g-3">
+            {% for group in perm_groups %}
+            <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                    <h6 class="mb-2">
+                        {% if group.level == 'menu' %}<i class="bi bi-menu-button-wide"></i>
+                        {% elif group.level == 'action' %}<i class="bi bi-hand-index-thumb"></i>
+                        {% else %}<i class="bi bi-braces"></i>{% endif %}
+                        {{ group.label }}
+                        <span class="text-muted small">（{{ group.items|length }} 项）</span>
+                    </h6>
+                    {% for item in group.items %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="perms" value="{{ item.obj.pk }}"
+                               id="perm-{{ item.obj.pk }}" {% if item.checked %}checked{% endif %}>
+                        <label class="form-check-label" for="perm-{{ item.obj.pk }}">
+                            {{ item.obj.name }}
+                            <code class="text-muted small">{{ item.obj.code }}</code>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-4 d-flex align-items-center gap-2">
+            <button type="submit" class="btn btn-brand">保存该角色权限</button>
+            <span class="text-muted">当前角色：<b>{{ current_role.name }}</b>（{{ current_role.description }}）</span>
+        </div>
+    </form>
+    {% else %}
+    <div class="empty">
+        <span class="ttl">暂无角色数据</span>
+        <span class="hint">请先执行 python manage.py init_data 初始化角色与权限</span>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

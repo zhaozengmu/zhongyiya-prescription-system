@@ -13,7 +13,21 @@
         <tr><th>过敏史</th><td>{{ patient.allergy_history|default:'无' }}</td></tr>
         <tr><th>孕产状态</th><td>{{ patient.get_pregnancy_status_display }}</td></tr>
         <tr><th>既往就诊摘要</th><td>{{ patient.visit_summary|default:'无' }}</td></tr>
+        <tr><th>体质辨识</th><td>{{ patient.get_constitution_display }}</td></tr>
+        <tr><th>既往病史</th><td>{{ patient.medical_history|default:'无' }}</td></tr>
     </table>
-    <a href="{% url 'patients:patient_list' %}" class="btn btn-outline-secondary">返回列表</a>
+    <div class="d-flex gap-2">
+        <a href="{% url 'patients:patient_list' %}" class="btn btn-outline-secondary">返回列表</a>
+        {% if can_edit_patient %}
+        <a href="{% url 'patients:patient_edit' patient.pk %}" class="btn btn-brand">编辑档案</a>
+        {% endif %}
+        {% if can_delete_patient %}
+        <form method="post" action="{% url 'patients:patient_delete' patient.pk %}"
+              onsubmit="return confirm('确认逻辑删除该患者档案？历史处方仍可追溯。');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">逻辑删除</button>
+        </form>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

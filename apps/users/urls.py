@@ -15,6 +15,7 @@ urlpatterns = [
     path("applications/<int:pk>/review/", views.application_review, name="application_review"),
     path("logout/", views.logout_view, name="logout"),
     path("doctors/", views.doctor_list, name="doctor_list"),
+    path("roles/permissions/", views.role_permission_manage, name="role_permissions"),
     path("profile/", views.profile_view, name="profile"),
     path("home/", views.home_redirect, name="home"),
 ]
